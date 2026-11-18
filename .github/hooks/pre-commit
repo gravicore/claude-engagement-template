@@ -85,76 +85,19 @@ if [[ -n "$PRETTIER_FILES" ]]; then
   fi
 fi
 
-# Naming convention checks - mirrors CI validate-plugin-integrity naming steps.
-# Runs only when plugin manifests, marketplace registry, or skill dirs are staged.
-PLUGIN_STAGED=$(echo "$STAGED" | grep -E '^(plugins/|\.claude-plugin/)' || true)
+# Naming convention checks - the same script CI runs (validate.yml, step "Check plugin and skill naming").
+# Runs only when plugin dirs, the marketplace registry, or the naming config are staged.
+PLUGIN_STAGED=$(echo "$STAGED" | grep -E '^(plugins/|\.claude-plugin/|\.engagement\.json$)' || true)
 
 if [[ -n "$PLUGIN_STAGED" ]]; then
-  echo "naming: checking grv- prefix and global uniqueness..."
+  echo "naming: checking plugin and skill names against .engagement.json..."
   # The assignment must not fail under set -e before the reason is printed, so capture the exit code.
   NAMING_RC=0
-  NAMING_OUTPUT=$(cd "$REPO_ROOT" && python3 << 'PYEOF'
-import json, sys, os, re
-
-errors = []
-
-# --- Check 1: plugin name convention (grv- prefix on dirname + marketplace sync) ---
-marketplace_path = '.claude-plugin/marketplace.json'
-if os.path.exists(marketplace_path):
-  with open(marketplace_path) as f:
-    marketplace = json.load(f)
-  for entry in marketplace.get('plugins', []):
-    src = entry.get('source')
-    plugin_path = src.lstrip('./') if isinstance(src, str) else src.get('path', '')
-    plugin_dirname = os.path.basename(plugin_path.rstrip('/'))
-    entry_name = entry.get('name', '')
-    if not plugin_dirname.startswith('grv-'):
-      errors.append(
-        f'PLUGIN DIR: {plugin_path} - directory must start with "grv-" (got "{plugin_dirname}")'
-      )
-    elif entry_name != plugin_dirname:
-      errors.append(
-        f'PLUGIN NAME: marketplace.json entry "{entry_name}" != source dirname "{plugin_dirname}"'
-      )
-
-# --- Check 2: skill name prefix (grv- required) ---
-grv_pattern = re.compile(r'^grv-')
-if os.path.isdir('plugins'):
-  for root, dirs, files in os.walk('plugins'):
-    dirs[:] = [d for d in dirs if not d.startswith('.')]
-    if os.path.basename(root) != 'skills':
-      continue
-    for skill_dir in sorted(dirs):
-      if not grv_pattern.match(skill_dir):
-        errors.append(f'SKILL PREFIX: {root}/{skill_dir} must start with "grv-"')
-
-# --- Check 3: global skill name uniqueness ---
-skill_names = {}
-if os.path.isdir('plugins'):
-  for root, dirs, files in os.walk('plugins'):
-    dirs[:] = [d for d in dirs if not d.startswith('.')]
-    if os.path.basename(root) != 'skills':
-      continue
-    plugin_dir = root.split('/')[1]
-    for skill_dir in dirs:
-      if skill_dir.startswith('.'):
-        continue
-      skill_names.setdefault(skill_dir, []).append(plugin_dir)
-for name, plugins in skill_names.items():
-  if len(plugins) > 1:
-    errors.append(f'DUPLICATE SKILL: "{name}" exists in: {", ".join(plugins)}')
-
-if errors:
-  for e in errors:
-    print(e)
-  sys.exit(1)
-print(f'OK: plugin names and {len(skill_names)} skill names pass grv- naming checks')
-PYEOF
-  ) || NAMING_RC=$?
+  NAMING_OUTPUT=$(cd "$REPO_ROOT" && python3 scripts/check-naming.py) || NAMING_RC=$?
   echo "$NAMING_OUTPUT"
   if [[ $NAMING_RC -ne 0 ]]; then
     echo ""
-    echo "Fix naming violations before committing. See CLAUDE.md section Naming convention."
+    echo "Fix naming violations before committing. See .claude/docs/naming-convention.md."
     ERRORS=1
   fi
 fi

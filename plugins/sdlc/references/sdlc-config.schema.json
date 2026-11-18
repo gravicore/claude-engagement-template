@@ -1,0 +1,418 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdlc-config.schema.json",
+  "title": "sdlc Project Config",
+  "description": "Schema for .sdlc/config.json, the one file every sdlc skill reads project coordinates from (see config-contract.md). Every key is required: an unused capability is expressed with the value none, null or an empty array, never by omitting the key, so a skill can fail closed on absence. Human gates (merge, ticket closure, UAT sign-off, release publication, ruleset changes) are not configurable and have no key here.",
+  "type": "object",
+  "required": [
+    "project",
+    "repo",
+    "tracker",
+    "owners",
+    "environments",
+    "chat",
+    "docs",
+    "compliance",
+    "engine",
+    "verification"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional editor hint pointing at this schema. Ignored by skills."
+    },
+    "project": {
+      "type": "object",
+      "description": "Identity of the product or service this repository delivers.",
+      "required": ["name", "key"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human name of the product or service."
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,31}$",
+          "description": "Short lowercase slug used in branch names and skill output."
+        }
+      }
+    },
+    "repo": {
+      "type": "object",
+      "description": "GitHub coordinates and merge gates.",
+      "required": ["owner", "name", "defaultBranch", "requiredChecks", "mergePolicy"],
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$",
+          "description": "GitHub organization or user that owns the repository."
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,100}$",
+          "description": "GitHub repository name."
+        },
+        "defaultBranch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Branch that pull requests target. Usually main."
+        },
+        "requiredChecks": {
+          "type": "array",
+          "description": "Exact names of the required status checks. These are the merge gates; a PR is merge-ready only when every one has reached a final state. An empty array means no check gates a merge and should be recorded as a gap.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "mergePolicy": {
+          "type": "string",
+          "enum": ["squash", "merge", "rebase"],
+          "description": "The merge method the ruleset allows. Informational for skills: merging is always a human act."
+        }
+      }
+    },
+    "tracker": {
+      "type": "object",
+      "description": "Issue tracker coordinates, transition ids and labels.",
+      "required": ["type", "cloudId", "projectKey", "transitions", "labels", "releaseGateEpic"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["jira"],
+          "description": "Tracker product. Only jira is supported today."
+        },
+        "cloudId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Atlassian site id."
+        },
+        "projectKey": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{1,9}$",
+          "description": "Jira project key, for example ABC."
+        },
+        "transitions": {
+          "type": "object",
+          "description": "Workflow transition ids. Ids, never display names: display names change and differ per site.",
+          "required": ["selected", "inProgress", "uat", "done"],
+          "additionalProperties": false,
+          "properties": {
+            "selected": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Transition id from Backlog to selected-for-development."
+            },
+            "inProgress": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Transition id to In Progress, applied when execution starts."
+            },
+            "uat": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Transition id to UAT, the single human-approval gate."
+            },
+            "done": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Transition id to Done. Written only by a release close-out, on explicit human selection, as its terminal act."
+            }
+          }
+        },
+        "labels": {
+          "type": "object",
+          "description": "Labels the skills apply.",
+          "required": ["provenance", "stage"],
+          "additionalProperties": false,
+          "properties": {
+            "provenance": {
+              "type": "string",
+              "pattern": "^[^\\s]+$",
+              "default": "ai",
+              "description": "Permanent agent-provenance label, applied at an agent's first write to a ticket and never removed."
+            },
+            "stage": {
+              "type": "object",
+              "description": "Stage labels showing live agent activity. Added when an activity starts, removed by name when it ends.",
+              "required": ["discussing", "planning", "executing", "halted"],
+              "additionalProperties": false,
+              "properties": {
+                "discussing": {
+                  "type": "string",
+                  "pattern": "^[^\\s]+$",
+                  "description": "Label while a phase is in discussion."
+                },
+                "planning": {
+                  "type": "string",
+                  "pattern": "^[^\\s]+$",
+                  "description": "Label while a phase is being planned."
+                },
+                "executing": {
+                  "type": "string",
+                  "pattern": "^[^\\s]+$",
+                  "description": "Label while a phase is executing."
+                },
+                "halted": {
+                  "type": "string",
+                  "pattern": "^[^\\s]+$",
+                  "description": "Label when a run stopped at a blocker or human gate."
+                }
+              }
+            }
+          }
+        },
+        "releaseGateEpic": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Z][A-Z0-9_]{1,9}-[0-9]+$",
+          "description": "Issue key of the epic gating promotion to live production, or null when no such gate exists yet."
+        },
+        "siteUrl": {
+          "type": ["string", "null"],
+          "description": "Optional. Base URL of the tracker site, used only to build browse links. Skills omit links when absent."
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional. Custom field ids. A skill skips a field whose id is absent; it never guesses one.",
+          "properties": {
+            "storyPoints": {
+              "type": ["string", "null"],
+              "description": "Custom field id for story points."
+            },
+            "track": {
+              "type": ["string", "null"],
+              "description": "Custom field id for a track or workstream field."
+            },
+            "specReference": {
+              "type": ["string", "null"],
+              "description": "Custom field id for a link to the governing spec."
+            }
+          }
+        },
+        "linkTypes": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional. Issue link type names.",
+          "properties": {
+            "blocks": {
+              "type": "string",
+              "description": "Name of the Blocks link type."
+            }
+          }
+        },
+        "componentMap": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Optional. Maps a prefix to a tracker component name. A key ending in / is a repository path prefix; a key ending in - is a requirement-id prefix."
+        }
+      }
+    },
+    "owners": {
+      "type": "object",
+      "description": "Named individuals. A recorded decision names a person, never a team or a role alone.",
+      "required": ["productOwner", "leadEngineer"],
+      "additionalProperties": false,
+      "properties": {
+        "productOwner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full name of the product owner. Owns business epics and their acceptance."
+        },
+        "leadEngineer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full name of the lead engineer. Owns phase Stories and technical epics."
+        }
+      }
+    },
+    "environments": {
+      "type": "array",
+      "description": "Every environment the project deploys to or plans to, including one that does not exist yet. Risk judgements depend on which one is in play.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "url", "dataClass", "promotion"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Unambiguous environment name. Never a bare word that two environments could both claim."
+          },
+          "url": {
+            "type": ["string", "null"],
+            "pattern": "^https?://",
+            "description": "Base URL, or null for an environment with no fixed URL (a per-PR preview) or one that does not exist yet."
+          },
+          "dataClass": {
+            "type": "string",
+            "enum": ["synthetic", "production"],
+            "description": "synthetic: no real customer data or real-world effect. production: real data or real effect."
+          },
+          "promotion": {
+            "type": "string",
+            "enum": ["auto", "human"],
+            "description": "auto: a merge or push deploys here with no further act. human: a named person promotes."
+          }
+        }
+      }
+    },
+    "chat": {
+      "type": "object",
+      "description": "Team chat used for notify-only pointers.",
+      "required": ["type", "channel"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["slack", "none"],
+          "description": "Chat product, or none to skip every chat step."
+        },
+        "channel": {
+          "type": ["string", "null"],
+          "description": "Channel name without the leading hash. Null when type is none."
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "const": "slack"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "channel": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,79}$"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "channel": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "docs": {
+      "type": "object",
+      "description": "Home of operator-facing documentation.",
+      "required": ["type", "spaceId", "parentPageId"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["confluence", "none"],
+          "description": "Documentation product, or none to keep all docs in the repository."
+        },
+        "spaceId": {
+          "type": ["string", "null"],
+          "description": "Confluence space id. Null when type is none."
+        },
+        "parentPageId": {
+          "type": ["string", "null"],
+          "description": "Id of the page new articles are created under. Null when type is none."
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "const": "confluence"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "spaceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parentPageId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "spaceId": {
+            "type": "null"
+          },
+          "parentPageId": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "description": "Regimes that apply to this project. Drives the flag lines skills print; it is not a compliance claim.",
+      "required": ["regimes"],
+      "additionalProperties": false,
+      "properties": {
+        "regimes": {
+          "type": "array",
+          "description": "Short regime identifiers, for example SOC2 or GLBA. Empty when none has been established.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ./-]*$"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "description": "Delivery engine requirements.",
+      "required": ["gsdCoreMinVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "gsdCoreMinVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Minimum gsd-core version the skills were verified on for this repository."
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "description": "Where live verification can run.",
+      "required": ["localStack", "preview"],
+      "additionalProperties": false,
+      "properties": {
+        "localStack": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Command that brings up the local stack, or null when there is none."
+        },
+        "preview": {
+          "type": "string",
+          "enum": ["none", "per-pr"],
+          "description": "Whether each pull request gets its own preview environment."
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional. Release coordinates.",
+      "properties": {
+        "targetEnvironment": {
+          "type": "string",
+          "description": "Name of the environments[] entry a release ships to. When absent, release-close derives it and asks if ambiguous."
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Enablement Guide
 
-This folder is the playbook for rolling the `grv-sdlc` skills out to a client's engineering
+This folder is the playbook for rolling the `sdlc` skills out to a client's engineering
 organization. It is written for the people who run the rollout (consultancy and client), not for
 the skill authors; authoring rules live in `docs/contributing/`.
 
@@ -10,7 +10,7 @@ template repository.
 
 ## What is being rolled out
 
-The instance is a Claude Code plugin marketplace. Its `grv-sdlc` plugin carries delivery-lifecycle
+The instance is a Claude Code plugin marketplace. Its `sdlc` plugin carries delivery-lifecycle
 skills (epic, milestone, phase, UAT, release, learnings) that drive the open-source gsd-core engine
 and a Jira project. The process has hard human gates: an agent never merges, never records UAT
 sign-off, never closes a ticket, never publishes a release and never changes a ruleset without a
@@ -18,19 +18,19 @@ named human. Everything in
 this folder exists to make those gates real in the client's environment, not just written down.
 
 Project coordinates (tracker project, repository, environments, owners) live in one file per
-consuming repository, `.grv/sdlc.json`, described in
-`plugins/grv-sdlc/references/config-contract.md`. No skill hardcodes a client value.
+consuming repository, `.sdlc/config.json`, described in
+`plugins/sdlc/references/config-contract.md`. No skill hardcodes a client value.
 
 ## Documents
 
-| File                            | Purpose                                                                                                                 | Length          |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `01-rollout-playbook.md`        | Six phases with entry and exit criteria, plus a RACI table                                                              | Read first      |
-| `02-client-org-setup.md`        | Instantiating the repo, distributing the marketplace, managed settings, Atlassian connector, gsd-core, `.grv/sdlc.json` | Hands-on        |
-| `03-training-curriculum.md`     | Role tracks, labs on a sandbox repo, competency checks, train-the-trainer                                               | Hands-on        |
-| `04-controls-and-governance.md` | What must be true before agents write code in a regulated environment, and how to evidence it                           | Risk owners     |
-| `05-adoption-metrics.md`        | Six signals, how to collect each, what good looks like in 90 days                                                       | Sponsors, leads |
-| `06-faq-and-objections.md`      | Straight answers to the questions engineers and risk owners ask                                                         | Everyone        |
+| File                            | Purpose                                                                                                                    | Length          |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `01-rollout-playbook.md`        | Six phases with entry and exit criteria, plus a RACI table                                                                 | Read first      |
+| `02-client-org-setup.md`        | Instantiating the repo, distributing the marketplace, managed settings, Atlassian connector, gsd-core, `.sdlc/config.json` | Hands-on        |
+| `03-training-curriculum.md`     | Role tracks, labs on a sandbox repo, competency checks, train-the-trainer                                                  | Hands-on        |
+| `04-controls-and-governance.md` | What must be true before agents write code in a regulated environment, and how to evidence it                              | Risk owners     |
+| `05-adoption-metrics.md`        | Six signals, how to collect each, what good looks like in 90 days                                                          | Sponsors, leads |
+| `06-faq-and-objections.md`      | Straight answers to the questions engineers and risk owners ask                                                            | Everyone        |
 
 ## Reading order by role
 
@@ -82,7 +82,7 @@ to change between Claude Code releases. Re-run the Foundation smoke test (end of
 Day one: the sponsor and platform lead read the documents listed for their role and agree who the
 named humans are for each gate. Day two: security starts the vendor data-handling review, since it
 has the longest lead time. Days three to five: the platform lead creates the instance, the
-consultancy lead engineer drafts the pilot `.grv/sdlc.json`, and both agree the pilot epic. Nothing
+consultancy lead engineer drafts the pilot `.sdlc/config.json`, and both agree the pilot epic. Nothing
 in the first week involves an agent writing code in a client repository.
 
 ## Who to ask

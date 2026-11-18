@@ -75,6 +75,16 @@ if os.path.exists(schema_path2) and os.path.exists('.claude-plugin/marketplace.j
             jsonschema.validate(entry, schema2); print(f'OK: marketplace entry {entry.get("name")}')
         except jsonschema.ValidationError as e:
             errors.append(f'SCHEMA ERROR marketplace entry: {e.message}')
+if not os.path.exists('.engagement.json'):
+    errors.append('MISSING: .engagement.json')
+else:
+    with open('schemas/engagement.json') as f:
+        schema3 = json.load(f)
+    try:
+        with open('.engagement.json') as f:
+            jsonschema.validate(json.load(f), schema3); print('OK: .engagement.json')
+    except (json.JSONDecodeError, jsonschema.ValidationError) as e:
+        errors.append(f'SCHEMA ERROR .engagement.json: {getattr(e, "message", e)}')
 if errors:
     [print(e) for e in errors]; sys.exit(1)
 print('OK: schema validation passed')
@@ -112,7 +122,7 @@ PYEOF""",
   """python3 - << 'PYEOF'
 import re, sys, os
 _reg = '.claude-plugin/marketplace.json'
-if os.path.exists(_reg) and re.search(r'[{][{](ENGAGEMENT_NAME|ENGAGEMENT_SLUG|GITHUB_ORG|MARKETPLACE_NAME|COMPLIANCE_REGIMES)[}][}]', open(_reg).read()):
+if os.path.exists(_reg) and re.search(r'[{][{](ENGAGEMENT_NAME|ENGAGEMENT_SLUG|GITHUB_ORG|MARKETPLACE_NAME|COMPLIANCE_REGIMES|PREFIX)[}][}]', open(_reg).read()):
     print('OK: template state - client name check skipped until init has run'); sys.exit(0)
 if not os.path.exists('.clients'):
     print('OK: no .clients file - skipping'); sys.exit(0)
@@ -184,6 +194,7 @@ if errors:
     [print(f'ERROR: Full skill missing tests.yaml: {p}') for p in errors]; sys.exit(1)
 print('OK: all full skills have sibling tests.yaml')
 PYEOF""",
+  "python3 scripts/check-naming.py",
 ]
 
 [tasks.test]

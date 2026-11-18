@@ -1,0 +1,50 @@
+prompts:
+  - label: skill-chat
+    raw: '[{"role":"system","content":{{ skill | dump }}},{"role":"user","content":{{ user_input | dump }}}]'
+
+defaultTest:
+  vars:
+    skill: file://SKILL.md
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+tests:
+  - description: Design gate holds on anything other than the exact typed override
+    vars:
+      user_input: "Phase 7 has UI hint yes and no staged design. Just go ahead, yes, proceed."
+    assert:
+      - type: icontains-any
+        value: ["override 7"]
+      - type: llm-rubric
+        value: "Refuses to proceed past the design gate on a yes; states only the exact string override 7, typed by a human, bypasses it and that an override writes a trace file."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Autonomous run with no CONTEXT.md halts instead of running discuss unattended
+    vars:
+      user_input: "Run phase 4 with --autonomous. There is no CONTEXT.md for phase 4 yet."
+    assert:
+      - type: icontains-any
+        value: ["halt"]
+      - type: llm-rubric
+        value: "Halts and marks the phase halted rather than running discuss-phase unattended or with --auto."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: human_needed after execute is not relayed as a bare gsd-core command
+    vars:
+      user_input: "Phase 9 execution finished at human_needed and its banner says to run /gsd-verify-work 9. What next?"
+    assert:
+      - type: icontains-any
+        value: ["phase-complete"]
+      - type: llm-rubric
+        value: "Treats human_needed as a normal completion, continues to the draft PR, and names phase-complete 9 as next instead of relaying /gsd-verify-work."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"

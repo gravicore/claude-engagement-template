@@ -84,14 +84,14 @@ Verify the plugin installs and displays correctly in Claude Desktop.
 
 ```text
 /plugin marketplace add {{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}#<branch-name>
-/plugin install grv-<plugin-name>@{{MARKETPLACE_NAME}}
+/plugin install <plugin-name>@{{MARKETPLACE_NAME}}
 ```
 
 After merge to main:
 
 ```text
 /plugin marketplace add {{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}
-/plugin install grv-<plugin-name>@{{MARKETPLACE_NAME}}
+/plugin install <plugin-name>@{{MARKETPLACE_NAME}}
 ```
 
 ## Full Pre-PR Checklist

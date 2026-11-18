@@ -58,8 +58,8 @@ touch the operate plane (how the running system behaves).
     `verification.localStack` brings the stack up (or is `null`), and `verification.preview`
     matches what a PR actually gets. A local tier that differs from CI is recorded as such.
 14. **The engine and plugin are installed.** gsd-core is installed globally at or above
-    `engine.gsdCoreMinVersion`, not vendored, and the `grv-sdlc` plugin is installed from the
-    engagement marketplace. `.grv/sdlc.json` validates against the plugin's schema.
+    `engine.gsdCoreMinVersion`, not vendored, and the `sdlc` plugin is installed from the
+    engagement marketplace. `.sdlc/config.json` validates against the plugin's schema.
 15. **Instruction files are complete.** No `FILL:` marker remains in `AGENTS.md` or `CLAUDE.md`,
     and the named owners in `owners` are individuals who know they are named.
 

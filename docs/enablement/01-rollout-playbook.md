@@ -27,7 +27,7 @@ Work:
    if used.
 4. Toolchain inventory. For each pilot repository: language and build tooling, CI checks, branch and
    merge policy, local stack availability, preview environments, secret handling. This feeds
-   `.grv/sdlc.json` and shows early where the process will need a project-specific `AGENTS.md`.
+   `.sdlc/config.json` and shows early where the process will need a project-specific `AGENTS.md`.
 5. Data classification of environments. Label every environment synthetic or production-like in
    writing. Agents work against synthetic data only until Foundation controls are evidenced.
 
@@ -43,7 +43,7 @@ Entry: Readiness exit met.
 Work: create the instance in the client's organization and distribute the marketplace
 (`02-client-org-setup.md`); apply the controls in `04-controls-and-governance.md` sections 3 to 8
 (rulesets, signing, agent credential without admin rights, secret handling, provenance label); fill
-`.grv/sdlc.json` for the pilot repository; install gsd-core globally on pilot machines; connect the
+`.sdlc/config.json` for the pilot repository; install gsd-core globally on pilot machines; connect the
 Jira integration.
 
 Exit: the control evidence pack (see section 9 of `04`) exists and a client reviewer who did not
@@ -84,7 +84,7 @@ Purpose: add repositories and teams without diluting the controls.
 
 Entry: Train exit met; an instance owner on the client side with capacity to review pull requests.
 
-Work: onboard repositories in small batches. Each gets its own `.grv/sdlc.json`, its own project
+Work: onboard repositories in small batches. Each gets its own `.sdlc/config.json`, its own project
 `AGENTS.md` for technology rules, and the same ruleset and signing controls. Decide per repository
 whether it needs a preview environment and a local verification stack.
 
@@ -119,7 +119,7 @@ R = does the work, A = accountable (one per row), C = consulted, I = informed.
 | Rulesets, signing, agent credential            | I              | A/R                  | C                          | R                         | I          |
 | Managed settings policy                        | I              | A/R                  | C                          | R                         | I          |
 | Control evidence pack                          | I              | R                    | A                          | R                         | I          |
-| `.grv/sdlc.json` and project `AGENTS.md`       | I              | C                    | I                          | R                         | A          |
+| `.sdlc/config.json` and project `AGENTS.md`    | I              | C                    | I                          | R                         | A          |
 | Pilot epic delivery                            | I              | C                    | I                          | R                         | A          |
 | Merge, UAT sign-off, ticket closure, release   | I              | C                    | C                          | C                         | A          |
 | Training delivery                              | I              | R                    | C                          | A/R                       | R          |

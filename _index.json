@@ -38,8 +38,13 @@
       "consumers": ["claude-cli"]
     },
     {
+      "file": ".engagement.json",
+      "purpose": "Naming config read by scripts/check-naming.py (CI, pre-commit, mise run validate): the engagement prefix for engagement-authored plugins and skills, and the generic plugins that carry no prefix. Schema: schemas/engagement.json.",
+      "consumers": ["ci", "mise", "claude-hooks", "all agents"]
+    },
+    {
       "file": "plugins/",
-      "purpose": "One directory per plugin, named grv-<slug>. Ships with grv-sdlc (delivery-lifecycle skills).",
+      "purpose": "One directory per plugin. Ships with the generic, unprefixed sdlc plugin (delivery-lifecycle skills); engagement plugins are named <prefix>-<slug> with the prefix from .engagement.json.",
       "consumers": ["claude-cli", "developers", "all agents"]
     },
     {
@@ -59,12 +64,12 @@
     },
     {
       "file": "schemas/",
-      "purpose": "JSON Schema definitions for plugin.json and marketplace-entry.json. Used by CI validation and mise run validate.",
+      "purpose": "JSON Schema definitions for plugin.json, marketplace-entry.json and engagement.json (the root .engagement.json). Used by CI validation and mise run validate.",
       "consumers": ["ci", "mise"]
     },
     {
       "file": "scripts/",
-      "purpose": "Repo tooling: init-engagement.sh (one-time placeholder fill-in for a new instance) and template-state.sh (CI helper that detects an uninitialized template).",
+      "purpose": "Repo tooling: init-engagement.sh (one-time placeholder fill-in for a new instance), template-state.sh (CI helper that detects an uninitialized template) and check-naming.py (the plugin and skill naming rule, run by CI, the pre-commit hook and mise run validate).",
       "consumers": ["humans", "ci"]
     },
     {
@@ -94,7 +99,7 @@
     },
     {
       "file": "LICENSE",
-      "purpose": "Apache License 2.0 for the template scaffold and the grv-sdlc plugin.",
+      "purpose": "Apache License 2.0 for the template scaffold and the sdlc plugin.",
       "consumers": ["humans"]
     },
     {

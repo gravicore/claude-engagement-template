@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # init-engagement.sh - turn a fresh copy of the engagement template into one client's instance.
 #
-# Replaces the five placeholder tokens in every text file, removes the template-only blocks
+# Replaces the six placeholder tokens in every text file, removes the template-only blocks
 # (between the template:begin and template:end HTML comment markers), and reports each change.
 # Never touches .git. Refuses to run when no placeholder remains, so it cannot be applied twice.
 # Portable across macOS/BSD and GNU userland (uses sed -i.bak, awk, find, grep only).
@@ -23,16 +23,18 @@ tok() { printf '%s%s%s' "$OPEN" "$1" "$CLOSE"; }
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/init-engagement.sh --name NAME --slug SLUG --org ORG --regimes LIST [options]
+Usage: scripts/init-engagement.sh --name NAME --slug SLUG --org ORG --prefix CODE --regimes LIST [options]
 
 Required:
   --name NAME          Human engagement name (replaces the ENGAGEMENT_NAME token)
   --slug SLUG          Kebab-case slug, e.g. acme-lending (ENGAGEMENT_SLUG)
   --org ORG            GitHub org that hosts the instance (GITHUB_ORG)
+  --prefix CODE        Engagement prefix for engagement-authored plugins and skills, 2-8 chars,
+                       lowercase letters and digits, starting with a letter, e.g. acme (PREFIX)
   --regimes LIST       Compliance regimes in scope, free text (COMPLIANCE_REGIMES)
 
 Optional:
-  --marketplace ID     Marketplace id (MARKETPLACE_NAME); default: gravicore-<slug>
+  --marketplace ID     Marketplace id (MARKETPLACE_NAME); default: the prefix
   --dry-run            Report what would change; modify nothing
   -h, --help           Show this help
 
@@ -49,6 +51,7 @@ NAME=""
 SLUG=""
 ORG=""
 MARKETPLACE=""
+PREFIX=""
 REGIMES=""
 DRY_RUN=0
 
@@ -62,11 +65,13 @@ while [[ $# -gt 0 ]]; do
     --slug) need_value "$@" && SLUG="$2" && shift 2 ;;
     --org) need_value "$@" && ORG="$2" && shift 2 ;;
     --marketplace) need_value "$@" && MARKETPLACE="$2" && shift 2 ;;
+    --prefix) need_value "$@" && PREFIX="$2" && shift 2 ;;
     --regimes) need_value "$@" && REGIMES="$2" && shift 2 ;;
     --name=*) NAME="${1#*=}" && shift ;;
     --slug=*) SLUG="${1#*=}" && shift ;;
     --org=*) ORG="${1#*=}" && shift ;;
     --marketplace=*) MARKETPLACE="${1#*=}" && shift ;;
+    --prefix=*) PREFIX="${1#*=}" && shift ;;
     --regimes=*) REGIMES="${1#*=}" && shift ;;
     --dry-run) DRY_RUN=1 && shift ;;
     -h | --help) usage && exit 0 ;;
@@ -77,8 +82,10 @@ done
 [[ -n "$NAME" ]] || die "--name is required"
 [[ -n "$SLUG" ]] || die "--slug is required"
 [[ -n "$ORG" ]] || die "--org is required"
+[[ -n "$PREFIX" ]] || die "--prefix is required (a short engagement code such as acme)"
 [[ -n "$REGIMES" ]] || die "--regimes is required (use a short phrase such as 'none identified' if truly none)"
-[[ -n "$MARKETPLACE" ]] || MARKETPLACE="gravicore-${SLUG}"
+[[ "$PREFIX" =~ ^[a-z][a-z0-9]{1,7}$ ]] || die "--prefix must be 2-8 chars: lowercase letters and digits, starting with a letter"
+[[ -n "$MARKETPLACE" ]] || MARKETPLACE="$PREFIX"
 
 [[ "$SLUG" =~ ^[a-z][a-z0-9-]*$ ]] || die "--slug must be lowercase kebab-case (a-z, 0-9, hyphen), starting with a letter"
 [[ "$MARKETPLACE" =~ ^[a-z][a-z0-9-]*$ ]] || die "--marketplace must be lowercase kebab-case, starting with a letter"
@@ -93,8 +100,12 @@ done
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-TOKENS=(ENGAGEMENT_NAME ENGAGEMENT_SLUG GITHUB_ORG MARKETPLACE_NAME COMPLIANCE_REGIMES)
-VALUES=("$NAME" "$SLUG" "$ORG" "$MARKETPLACE" "$REGIMES")
+if [[ -f .engagement.json ]] && grep -Eq "\"genericPlugins\".*\"${PREFIX}\"" .engagement.json; then
+  die "--prefix '$PREFIX' is the name of a generic plugin; choose another code"
+fi
+
+TOKENS=(ENGAGEMENT_NAME ENGAGEMENT_SLUG GITHUB_ORG MARKETPLACE_NAME COMPLIANCE_REGIMES PREFIX)
+VALUES=("$NAME" "$SLUG" "$ORG" "$MARKETPLACE" "$REGIMES" "$PREFIX")
 
 # Escape a value for use in a sed replacement that uses | as its delimiter.
 esc() { printf '%s' "$1" | sed -e 's/[\\|&]/\\&/g'; }
@@ -132,6 +143,7 @@ fi
 echo "Engagement:  $NAME"
 echo "Slug:        $SLUG"
 echo "Org:         $ORG"
+echo "Prefix:      $PREFIX"
 echo "Marketplace: $MARKETPLACE"
 echo "Regimes:     $REGIMES"
 [[ "$DRY_RUN" -eq 1 ]] && echo "(dry run: no files will be modified)"

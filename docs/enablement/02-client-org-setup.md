@@ -21,10 +21,13 @@ each phase.
 3. Grant access by team, not by individual: a platform team with admin, a maintainers team with
    write plus code-owner review, all developers with read. The consultancy's contributors get write
    only through a fork or a restricted team, so their changes arrive by pull request.
-4. Edit `CODEOWNERS` to the client's real teams, and rename the marketplace in
-   `.claude-plugin/marketplace.json`. The marketplace `name` is what developers type after `@`, it
-   is taken from that file rather than the repository name, and a user cannot register two
-   marketplaces with the same name. Pick a name other authors are unlikely to choose.
+4. Run `scripts/init-engagement.sh` (see `TEMPLATE.md`) and edit `CODEOWNERS` to the client's real
+   teams. Init takes a short engagement prefix (`--prefix`): plugins and skills authored for the
+   engagement are named with it, while the generic `sdlc` plugin stays unprefixed. The marketplace
+   `name` in `.claude-plugin/marketplace.json` defaults to that prefix (`--marketplace` overrides
+   it). It is what developers type after `@`, it is taken from that file rather than the repository
+   name, and a user cannot register two marketplaces with the same name, so pick a prefix or
+   marketplace name other authors are unlikely to choose.
 5. Run `claude plugin validate .` from the repository root and fix every error before publishing
    (verified: the command validates JSON syntax, required fields and names).
 6. Apply the controls in `04-controls-and-governance.md` (rulesets, signing, code-owner review) to
@@ -46,11 +49,11 @@ Per developer (verified syntax; in a shell or inside a session):
 
 ```text
 /plugin marketplace add <org>/<repo>
-/plugin install grv-sdlc@<marketplace-name>
+/plugin install sdlc@<marketplace-name>
 ```
 
 The shell equivalents are `claude plugin marketplace add <org>/<repo>` and
-`claude plugin install grv-sdlc@<marketplace-name>`. Confirm with `claude plugin list`.
+`claude plugin install sdlc@<marketplace-name>`. Confirm with `claude plugin list`.
 
 Private repository access: Claude Code has no git token of its own; it runs `git` on the user's
 machine with prompts disabled and relies on stored credentials. For GitHub `owner/repo` it tries
@@ -92,7 +95,7 @@ A starting policy, using keys verified on the org and settings pages:
       "autoUpdate": true
     }
   },
-  "enabledPlugins": { "grv-sdlc@<marketplace-name>": true },
+  "enabledPlugins": { "sdlc@<marketplace-name>": true },
   "strictKnownMarketplaces": [{ "source": "github", "repo": "<org>/<repo>" }, { "source": "skills-dir" }],
   "disableSideloadFlags": true,
   "allowManagedPermissionRulesOnly": true,
@@ -142,14 +145,14 @@ Exact file format for `managed-mcp.json`: UNVERIFIED - confirm against `.../mana
 The skills drive the gsd-core engine from a global install; it is intentionally not vendored into
 repositories. Install it per machine with `npx @opengsd/gsd-core@latest --claude --global`, which
 installs to `~/.claude/gsd-core/` (repository `github.com/open-gsd/gsd-core`). Verified on 1.19.0 by
-the consultancy's reference process; re-check on newer versions. Record the engine version in `.grv/sdlc.json` (`engine.gsdCoreMinVersion`) and re-test
+the consultancy's reference process; re-check on newer versions. Record the engine version in `.sdlc/config.json` (`engine.gsdCoreMinVersion`) and re-test
 the skills' assumptions about the engine whenever it updates. Every developer machine needs it
 before the lifecycle skills work; add it to the onboarding script.
 
-## 6. Per-repository `.grv/sdlc.json`
+## 6. Per-repository `.sdlc/config.json`
 
-Copy `templates/project/.grv/sdlc.json` into each consuming repository and fill every required key
-(`plugins/grv-sdlc/references/config-contract.md`). Points that matter in practice:
+Copy `templates/project/.sdlc/config.json` into each consuming repository and fill every required key
+(`plugins/sdlc/references/config-contract.md`). Points that matter in practice:
 
 1. Transition values are Jira transition ids, not display names; look them up once per workflow.
 2. `owners.productOwner` and `owners.leadEngineer` are named individuals, because decisions must

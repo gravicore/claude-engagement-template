@@ -8,7 +8,7 @@ implemented rather than silently doing nothing.
 
 ```markdown
 ---
-name: grv-<action>
+name: {{PREFIX}}-<action>
 description: >
   One sentence trigger description. Triggers on: "phrase 1".
 allowed-tools: []

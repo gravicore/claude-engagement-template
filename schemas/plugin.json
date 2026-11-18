@@ -1,13 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Plugin Manifest",
-  "description": "Schema for plugin.json files. Plugin identity (name field) must match directory name (grv-<name>/).",
+  "description": "Schema for plugin.json files. Plugin identity (name field) must match the plugin directory name.",
   "type": "object",
   "properties": {
     "name": {
       "type": "string",
-      "pattern": "^grv-.+$",
-      "description": "Plugin identifier matching directory name (grv-<name>). Must match marketplace.json entry name exactly."
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Lowercase kebab-case plugin identifier matching the directory name and the marketplace.json entry name exactly. The prefix rule (a generic plugin listed in .engagement.json, or <prefix>-<name>) is enforced by scripts/check-naming.py, not by this schema."
     },
     "description": {
       "type": "string",
@@ -44,7 +44,7 @@
     "license": {
       "type": "string",
       "enum": ["Apache-2.0", "UNLICENSED"],
-      "description": "Apache-2.0 for the open source generic layer (for example grv-sdlc). UNLICENSED for engagement-specific plugins that stay proprietary to the instance owner."
+      "description": "Apache-2.0 for the open source generic layer (for example sdlc). UNLICENSED for engagement-specific plugins that stay proprietary to the instance owner."
     }
   },
   "required": ["name", "description", "version", "author", "license"],

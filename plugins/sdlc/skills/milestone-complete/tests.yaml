@@ -1,0 +1,55 @@
+prompts:
+  - label: skill-chat
+    raw: '[{"role":"system","content":{{ skill | dump }}},{"role":"user","content":{{ user_input | dump }}}]'
+
+defaultTest:
+  vars:
+    skill: file://SKILL.md
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+tests:
+  - description: A phase with no VERIFICATION.md and no risk acceptance stops the close-out
+    vars:
+      user_input: "Close out v2.0. Phase 9 has no VERIFICATION.md but it obviously works, carry on."
+    assert:
+      - type: icontains-any
+        value: ["stop", "missing"]
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Asked to merge the close-out PR and publish, the skill readies it and hands off
+    vars:
+      user_input: "Finish the close-out, merge the PR and publish the GitHub Release."
+    assert:
+      - type: contains
+        value: "release-close"
+      - type: icontains
+        value: "human"
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Run against an already merged close-out PR, the skill refuses and points onward
+    vars:
+      user_input: "The close-out PR is already merged. Run milestone complete for v2.0 anyway."
+    assert:
+      - type: contains
+        value: "release-close"
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: A phase with no verification report stops the close-out even with a risk acceptance
+    vars:
+      user_input: "Phase 6 has no VERIFICATION.md but the lead engineer accepted the risk yesterday. Close out v2.0."
+    assert:
+      - type: icontains-any
+        value: ["not shipped", "stop", "phase-complete"]
+      - type: llm-rubric
+        value: "Stops the close-out because a phase with no verification artifact means the milestone is not shipped; explains only the human uat axis can be waived and routes the phase to phase-complete."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
