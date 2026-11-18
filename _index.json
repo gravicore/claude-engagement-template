@@ -1,0 +1,106 @@
+{
+  "description": "{{ENGAGEMENT_SLUG}} - engagement-tier Claude plugin marketplace for the {{ENGAGEMENT_NAME}} engagement.",
+  "read_first": ["AGENTS.md", "CLAUDE.md"],
+  "files": [
+    {
+      "file": "AGENTS.md",
+      "purpose": "Cross-tool agent instructions. Source of truth for repo-wide agent behavior, ecosystem position, hosting options, compliance scope, branch and merge policy.",
+      "consumers": ["all agents"]
+    },
+    {
+      "file": "CLAUDE.md",
+      "purpose": "Claude Code-specific instructions. Imports AGENTS.md; adds naming convention, plugin conventions, stack and validation tables.",
+      "consumers": ["claude-code"]
+    },
+    {
+      "file": "_index.json",
+      "purpose": "This file. Machine-readable manifest of root artifacts.",
+      "consumers": ["all agents"]
+    },
+    {
+      "file": "README.md",
+      "purpose": "Repo overview: install instructions, three-tier model, three-surface compatibility, compliance note. In the template it also describes the template itself.",
+      "consumers": ["humans", "all agents"]
+    },
+    {
+      "file": "TEMPLATE.md",
+      "purpose": "How an instance is created from the engagement template, initialized, protected, and kept current with template updates.",
+      "consumers": ["humans", "all agents"]
+    },
+    {
+      "file": "CODEOWNERS",
+      "purpose": "Reference copy of code ownership. Every plugin directory must be covered (CI check).",
+      "consumers": ["github", "ci"]
+    },
+    {
+      "file": ".claude-plugin/marketplace.json",
+      "purpose": "Claude marketplace registry. Lists all plugins in this marketplace.",
+      "consumers": ["claude-cli"]
+    },
+    {
+      "file": "plugins/",
+      "purpose": "One directory per plugin, named grv-<slug>. Ships with grv-sdlc (delivery-lifecycle skills).",
+      "consumers": ["claude-cli", "developers", "all agents"]
+    },
+    {
+      "file": "templates/",
+      "purpose": "Project and document templates consumed by skills.",
+      "consumers": ["all agents", "developers"]
+    },
+    {
+      "file": "docs/enablement/",
+      "purpose": "Rollout playbook and client-org setup guidance for running an engagement on this marketplace.",
+      "consumers": ["humans", "all agents"]
+    },
+    {
+      "file": "docs/contributing/",
+      "purpose": "Plugin and skill authoring conventions: SKILL-AUTHORING.md, SKILL-TESTING.md, STUB-FORMAT.md.",
+      "consumers": ["developers", "all agents"]
+    },
+    {
+      "file": "schemas/",
+      "purpose": "JSON Schema definitions for plugin.json and marketplace-entry.json. Used by CI validation and mise run validate.",
+      "consumers": ["ci", "mise"]
+    },
+    {
+      "file": "scripts/",
+      "purpose": "Repo tooling: init-engagement.sh (one-time placeholder fill-in for a new instance) and template-state.sh (CI helper that detects an uninitialized template).",
+      "consumers": ["humans", "ci"]
+    },
+    {
+      "file": ".claude/docs/",
+      "purpose": "Claude Code-specific docs: VALIDATION.md (CI gate descriptions, hook limits), naming-convention.md (imported into CLAUDE.md).",
+      "consumers": ["claude-code"]
+    },
+    {
+      "file": ".claude/hooks/",
+      "purpose": "Claude Code hooks wired in .claude/settings.json: PreToolUse client-name guard; PostToolUse format, yamllint, skill suffix check, stub format check and template index regen. Hook input is JSON on stdin. A local guard only; CI is the enforcement point.",
+      "consumers": ["claude-code"]
+    },
+    {
+      "file": ".github/",
+      "purpose": "CI workflows (validate, validate-frontmatter, scan-plugins, pr-automation, request-claude-review), git hooks, PR template, labeler, security-scan policy, and branch-protection.json (reference copy; applying it is a human act).",
+      "consumers": ["github-actions", "humans"]
+    },
+    {
+      "file": ".clients",
+      "purpose": "Engagement-specific sensitive names (client system names, partner IDs, personal identifiers) that must never appear outside plugins/*/references/ directories. One name per line. The CI isolation check enforces it; the Claude Code PreToolUse hook .claude/hooks/block-client-names.sh also refuses a Claude Code write locally. Do not list the engagement name itself.",
+      "consumers": ["ci", "claude-hooks"]
+    },
+    {
+      "file": ".planning/",
+      "purpose": "Optional. GSD planning artifacts (PROJECT.md, roadmap, state) created when an instance runs GSD workflows. Committed to git when present.",
+      "consumers": ["all agents", "developers"]
+    },
+    {
+      "file": "LICENSE",
+      "purpose": "Apache License 2.0 for the template scaffold and the grv-sdlc plugin.",
+      "consumers": ["humans"]
+    },
+    {
+      "file": "NOTICE",
+      "purpose": "Copyright and attribution notice required by the Apache License 2.0.",
+      "consumers": ["humans"]
+    }
+  ]
+}

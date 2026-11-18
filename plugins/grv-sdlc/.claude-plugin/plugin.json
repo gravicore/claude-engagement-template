@@ -1,0 +1,10 @@
+{
+  "name": "grv-sdlc",
+  "description": "Delivery lifecycle on gsd-core: epics, milestones, phases, stories and releases with Jira tracking and human gates.",
+  "version": "0.1.0",
+  "author": {
+    "name": "GRAVICORE",
+    "url": "https://gravicore.io"
+  },
+  "license": "Apache-2.0"
+}

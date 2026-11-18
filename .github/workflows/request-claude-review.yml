@@ -1,0 +1,52 @@
+---
+name: Request Claude Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - ".github/workflows/**"
+      - ".claude/hooks/**"
+      - "schemas/**"
+      - ".gitleaks.toml"
+      - "CODEOWNERS"
+
+jobs:
+  request-review:
+    name: Request Claude review
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Detect changed sensitive paths
+        id: paths
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          CHANGED=$(gh pr diff "$PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" --name-only 2>/dev/null | \
+            grep -E "^(\.github/workflows/|\.claude/hooks/|schemas/|\.gitleaks\.toml|CODEOWNERS)" | \
+            tr '\n' ' ' | sed 's/ *$//')
+          echo "paths=${CHANGED}" >> "$GITHUB_OUTPUT"
+
+      - name: Post targeted review request
+        if: steps.paths.outputs.paths != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # File names come from the PR author, so they reach the shell only as data in an env var.
+          PATHS: ${{ steps.paths.outputs.paths }}
+        run: |
+          gh pr comment "$PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "@claude Please review this PR. The following sensitive paths were modified:
+
+          \`\`\`
+          ${PATHS}
+          \`\`\`
+
+          Focus on:
+          - **Security** - secrets, client names outside \`references/\`; hook exit codes, bypass conditions
+          - **Correctness** - CI workflow logic, schema constraints, gitleaks allowlist entries
+          - **Regressions** - would any change allow something the previous config blocked?"

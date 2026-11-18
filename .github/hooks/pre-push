@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Pre-push hook - enforces branch naming convention before any push reaches origin.
+# Setup: mise run setup (sets core.hooksPath to .github/hooks)
+#
+# Allowed prefixes:
+#   gsd/        - all current GSD phase and quick-work branches
+#   jira/       - future state after Jira/Confluence cutover
+#   dependabot/ - automated dependency update branches
+#
+# See CLAUDE.md section Branch naming convention.
+
+set -euo pipefail
+
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+# main is protected server-side - let the push through so GitHub can reject it cleanly
+[[ "$BRANCH" == "main" ]] && exit 0
+
+if [[ "$BRANCH" =~ ^(gsd/|jira/|dependabot/) ]]; then
+  exit 0
+fi
+
+echo "" >&2
+echo "ERROR: Branch '$BRANCH' does not follow the naming convention." >&2
+echo "" >&2
+echo "  Allowed prefixes:" >&2
+echo "    gsd/        - phase and quick work (e.g. gsd/p1-short-slug, gsd/fix-slug)" >&2
+echo "    jira/       - future Jira-backed work (e.g. jira/KEY-100-fix-manifests)" >&2
+echo "    dependabot/ - automated dependency updates (tool-managed)" >&2
+echo "" >&2
+echo "  Rename your branch before pushing:" >&2
+echo "    git branch -m $BRANCH gsd/<short-slug>" >&2
+echo "" >&2
+echo "  See CLAUDE.md section Branch naming convention." >&2
+echo "" >&2
+exit 1

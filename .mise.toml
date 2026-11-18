@@ -1,0 +1,191 @@
+[tools]
+uv = "latest"
+"pipx:yamllint" = "1.35.1"
+"npm:markdownlint-cli" = "latest"
+node = "lts"
+shfmt = "3.13.1"
+shellcheck = "0.11.0"
+"npm:prettier" = "3.8.3"
+
+[tasks.setup]
+description = "First-time repo setup - installs tools and activates git hooks"
+run = ["mise install", "git config core.hooksPath .github/hooks"]
+
+[tasks.lint]
+description = "Run all linters against the full working tree"
+run = [
+  "yamllint -c .yamllint.yml .github/workflows/",
+  "[ -d plugins ] && find plugins -name 'SKILL.md' -print0 | xargs -0 markdownlint --config .markdownlint.json 2>/dev/null || true",
+  "find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 shellcheck",
+]
+
+[tasks.format-check]
+description = "Check formatting without writing - mirrors CI BOOT-19"
+run = [
+  "npx prettier --check '**/*.{md,json,yml,yaml}' --ignore-path .prettierignore",
+  "find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 shfmt -i 2 -ci -d",
+]
+
+[tasks.format]
+description = "Auto-format Markdown, JSON, YAML, and shell scripts"
+run = [
+  "npx prettier --write '**/*.{md,json,yml,yaml}' --ignore-path .prettierignore",
+  "find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 shfmt -i 2 -ci -w",
+]
+
+[tasks.validate]
+description = "Validate structural checks - mirrors CI validate-plugin-integrity job; excludes skill-length warning (non-blocking)"
+run = [
+  """python3 - << 'PYEOF'
+import json, sys, os
+try:
+    import jsonschema
+except ImportError:
+    import subprocess
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'jsonschema==4.20.0', '-q'])
+    import jsonschema
+errors = []
+schema_path = 'schemas/plugin.json'
+if not os.path.exists(schema_path):
+    print(f'ERROR: Schema file missing: {schema_path}'); sys.exit(1)
+with open(schema_path) as f:
+    schema = json.load(f)
+plugin_dirs = [d for d in os.listdir('plugins') if os.path.isdir(f'plugins/{d}')] if os.path.isdir('plugins') else []
+for slug in plugin_dirs:
+    manifest = f'plugins/{slug}/.claude-plugin/plugin.json'
+    if not os.path.exists(manifest):
+        errors.append(f'MISSING: {manifest}'); continue
+    with open(manifest) as f:
+        try:
+            plugin = json.load(f)
+        except json.JSONDecodeError as e:
+            errors.append(f'INVALID JSON: {manifest}: {e}'); continue
+    try:
+        jsonschema.validate(plugin, schema); print(f'OK: {manifest}')
+    except jsonschema.ValidationError as e:
+        errors.append(f'SCHEMA ERROR in {manifest}: {e.message}')
+schema_path2 = 'schemas/marketplace-entry.json'
+if os.path.exists(schema_path2) and os.path.exists('.claude-plugin/marketplace.json'):
+    with open(schema_path2) as f:
+        schema2 = json.load(f)
+    with open('.claude-plugin/marketplace.json') as f:
+        marketplace = json.load(f)
+    for entry in marketplace.get('plugins', []):
+        try:
+            jsonschema.validate(entry, schema2); print(f'OK: marketplace entry {entry.get("name")}')
+        except jsonschema.ValidationError as e:
+            errors.append(f'SCHEMA ERROR marketplace entry: {e.message}')
+if errors:
+    [print(e) for e in errors]; sys.exit(1)
+print('OK: schema validation passed')
+PYEOF""",
+  """python3 - << 'PYEOF'
+import json, sys, os
+if not os.path.exists('.claude-plugin/marketplace.json'):
+    sys.exit(0)
+with open('.claude-plugin/marketplace.json') as f:
+    marketplace = json.load(f)
+errors = []
+for entry in marketplace.get('plugins', []):
+    src = entry.get('source')
+    if isinstance(src, str):
+        plugin_path = src.lstrip('./')
+    elif isinstance(src, dict):
+        plugin_path = src.get('path', '')
+    else:
+        plugin_path = ''
+    if not plugin_path:
+        errors.append(f'MISSING source.path: {entry.get("name")}'); continue
+    manifest = f'{plugin_path}/.claude-plugin/plugin.json'
+    if not os.path.exists(manifest):
+        continue
+    with open(manifest) as f:
+        plugin = json.load(f)
+    if plugin.get('version') != entry.get('version'):
+        errors.append(f'VERSION DRIFT: {plugin_path} - plugin={plugin.get("version")}, marketplace={entry.get("version")}')
+    else:
+        print(f'OK: {plugin_path} version consistent')
+if errors:
+    [print(e) for e in errors]; sys.exit(1)
+print('OK: version drift check passed')
+PYEOF""",
+  """python3 - << 'PYEOF'
+import re, sys, os
+_reg = '.claude-plugin/marketplace.json'
+if os.path.exists(_reg) and re.search(r'[{][{](ENGAGEMENT_NAME|ENGAGEMENT_SLUG|GITHUB_ORG|MARKETPLACE_NAME|COMPLIANCE_REGIMES)[}][}]', open(_reg).read()):
+    print('OK: template state - client name check skipped until init has run'); sys.exit(0)
+if not os.path.exists('.clients'):
+    print('OK: no .clients file - skipping'); sys.exit(0)
+with open('.clients') as f:
+    clients = [l.strip() for l in f if l.strip() and not l.strip().startswith('#')]
+if not clients:
+    print('OK: no clients configured - skipping'); sys.exit(0)
+pattern = re.compile(r'\\b(' + '|'.join(re.escape(c) for c in clients) + r')\\b', re.IGNORECASE)
+errors = []
+for root, dirs, files in os.walk('.'):
+    dirs[:] = [d for d in dirs if not d.startswith('.') and d != 'references']
+    for fname in files:
+        if not fname.endswith(('.md', '.json', '.yml', '.yaml', '.sh')):
+            continue
+        fpath = os.path.join(root, fname)
+        if '/references/' in fpath or fpath.startswith('./references/'):
+            continue
+        try:
+            with open(fpath) as fh:
+                content = fh.read()
+        except (UnicodeDecodeError, PermissionError):
+            continue
+        match = pattern.search(content)
+        if match:
+            errors.append(f'CLIENT NAME "{match.group()}" in {fpath}')
+if errors:
+    [print(f'ERROR: {e}') for e in errors]; sys.exit(1)
+print(f'OK: no client names outside references/ ({len(clients)} client(s) checked)')
+PYEOF""",
+  """python3 - << 'PYEOF'
+import sys, os
+errors = []
+if os.path.isdir('plugins'):
+    for root, dirs, files in os.walk('plugins'):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for fname in files:
+            if fname != 'SKILL.md':
+                continue
+            fpath = os.path.join(root, fname)
+            with open(fpath) as f:
+                content = f.read()
+            if 'allowed-tools: []' not in content:
+                continue
+            if 'not yet implemented' not in content.lower():
+                errors.append(fpath)
+if errors:
+    [print(f'ERROR: Stub missing "not yet implemented": {p}') for p in errors]; sys.exit(1)
+print('OK: stub format check passed')
+PYEOF""",
+  """python3 - << 'PYEOF'
+import sys, os
+errors = []
+if os.path.isdir('plugins'):
+    for root, dirs, files in os.walk('plugins'):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for fname in files:
+            if fname != 'SKILL.md':
+                continue
+            fpath = os.path.join(root, fname)
+            with open(fpath) as f:
+                content = f.read()
+            if 'allowed-tools: []' in content:
+                continue
+            skill_dir = os.path.dirname(fpath)
+            tests_path = os.path.join(skill_dir, 'tests.yaml')
+            if not os.path.exists(tests_path):
+                errors.append(fpath)
+if errors:
+    [print(f'ERROR: Full skill missing tests.yaml: {p}') for p in errors]; sys.exit(1)
+print('OK: all full skills have sibling tests.yaml')
+PYEOF""",
+]
+
+[tasks.test]
+description = "Run skill quality tests with promptfoo (pre-CI only - makes LLM API calls)"
+run = """for f in $(find plugins -name 'tests.yaml' | sort); do npx promptfoo eval --config "$f" || exit 1; done"""

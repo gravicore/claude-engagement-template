@@ -1,0 +1,6 @@
+# External reference documents - not authored by this repo, linting not enforced
+docs/reference/
+
+# Claude Code system config - special formatting requirements, not plugin content
+AGENTS.md
+CLAUDE.md

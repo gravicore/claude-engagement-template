@@ -1,0 +1,27 @@
+# PR auto-labeler config - consumed by actions/labeler in pr-automation.yml
+#
+# Branch-pattern labels (rollout tier)
+# File-pattern labels (content type)
+#
+# Both sets are additive - a PR can get multiple labels.
+
+ci:
+  - any:
+      - changed-files:
+          - any-glob-to-any-file:
+              - ".github/**"
+              - ".claude/**"
+              - "*.yml"
+              - "*.yaml"
+
+plugin:
+  - any:
+      - changed-files:
+          - any-glob-to-any-file: "plugins/**"
+
+documentation:
+  - any:
+      - changed-files:
+          - any-glob-to-any-file:
+              - "docs/**"
+              - ".planning/**"

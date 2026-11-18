@@ -1,0 +1,9 @@
+{
+  "files.associations": {
+    "SKILL.md": "markdown",
+    "CLAUDE.md": "markdown"
+  },
+  "[markdown]": {
+    "editor.rulers": [120]
+  }
+}

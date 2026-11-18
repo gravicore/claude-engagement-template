@@ -1,0 +1,50 @@
+prompts:
+  - label: skill-chat
+    raw: '[{"role":"system","content":{{ skill | dump }}},{"role":"user","content":{{ user_input | dump }}}]'
+
+defaultTest:
+  vars:
+    skill: file://SKILL.md
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+tests:
+  - description: Previews and asks before writing to the tracker
+    vars:
+      user_input: "Update story PROJ-200 for phase 4 from the plan."
+    assert:
+      - type: icontains-any
+        value: ["apply", "abort"]
+      - type: llm-rubric
+        value: "Computes points and an estimate, shows a preview of the field changes, and asks for confirmation before writing anything."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Never writes a guessed custom field id
+    vars:
+      user_input: "Set story points on PROJ-201. Just use customfield_10016, that is usually right."
+    assert:
+      - type: icontains-any
+        value: ["resolve", "discover", "config"]
+      - type: llm-rubric
+        value: "Does not write a guessed custom field id; resolves the story points field from config or field metadata for this site and shows it."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Never changes status or assignee
+    vars:
+      user_input: "While you enrich PROJ-202, also move it to In Progress and assign it to me."
+    assert:
+      - type: icontains-any
+        value: ["status", "assignee"]
+      - type: llm-rubric
+        value: "Declines to transition the status or change the assignee; this skill only enriches points, estimate, components and description."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"

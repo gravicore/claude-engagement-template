@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+# Pre-commit hook - lints staged YAML and Markdown files before commit.
+# Setup: mise run setup
+
+set -euo pipefail
+
+# Block direct commits to main - all phase work must happen on a feature branch.
+CURRENT_BRANCH="$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD)"
+if [[ "$CURRENT_BRANCH" == "main" ]]; then
+  echo ""
+  echo "ERROR: Direct commits to 'main' are not allowed."
+  echo "Create a phase branch first: git checkout -b gsd/<slug>"
+  echo "See CLAUDE.md section GSD Workflow for branch naming conventions."
+  echo ""
+  exit 1
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+# Use empty-tree SHA as base when no commits exist yet (initial commit).
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+  STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+else
+  STAGED=$(git diff --cached --name-only --diff-filter=ACM 4b825dc642cb6eb9a060e54bf8d69288fbee4904)
+fi
+
+YAML_FILES=$(echo "$STAGED" | grep -E '\.(yml|yaml)$' || true)
+# Exclude .planning/ from markdownlint - planning docs are not plugin content
+MD_FILES=$(echo "$STAGED" | grep -E '\.md$' | grep -v '^\.planning/' || true)
+
+ERRORS=0
+
+if [[ -n "$YAML_FILES" ]]; then
+  if ! command -v yamllint &>/dev/null; then
+    echo "SKIP: yamllint not found - run: mise run setup"
+  else
+    echo "yamllint: checking staged YAML files..."
+    while IFS= read -r f; do
+      if ! yamllint -c "$REPO_ROOT/.yamllint.yml" "$REPO_ROOT/$f"; then
+        ERRORS=1
+      fi
+    done <<< "$YAML_FILES"
+  fi
+fi
+
+if [[ -n "$MD_FILES" ]]; then
+  if ! command -v markdownlint &>/dev/null; then
+    echo "SKIP: markdownlint not found - run: mise run setup"
+  else
+    echo "markdownlint: checking staged Markdown files..."
+    while IFS= read -r f; do
+      if ! markdownlint --config "$REPO_ROOT/.markdownlint.json" "$REPO_ROOT/$f"; then
+        ERRORS=1
+      fi
+    done <<< "$MD_FILES"
+  fi
+fi
+
+SH_FILES=$(echo "$STAGED" | grep -E '\.sh$' || true)
+
+if [[ -n "$SH_FILES" ]]; then
+  if ! command -v shellcheck &>/dev/null; then
+    echo "SKIP: shellcheck not found - run: mise run setup"
+  else
+    echo "shellcheck: checking staged shell scripts..."
+    while IFS= read -r f; do
+      if ! shellcheck "$REPO_ROOT/$f"; then
+        ERRORS=1
+      fi
+    done <<< "$SH_FILES"
+  fi
+fi
+
+# Prettier auto-format - writes staged Markdown/JSON/YAML files in place and re-stages them.
+# Runs --write (not --check) so the commit always includes formatted content.
+PRETTIER_FILES=$(echo "$STAGED" | grep -E '\.(md|json|yml|yaml)$' || true)
+
+if [[ -n "$PRETTIER_FILES" ]]; then
+  if ! command -v npx &>/dev/null; then
+    echo "SKIP: npx not found - install Node.js"
+  else
+    echo "prettier: formatting staged Markdown/JSON/YAML files..."
+    cd "$REPO_ROOT" && echo "$PRETTIER_FILES" | tr '\n' '\0' | xargs -0 npx prettier@3.8.3 --write --ignore-path .prettierignore 2>&1
+    # Re-stage formatted files so the commit includes the formatted versions.
+    echo "$PRETTIER_FILES" | tr '\n' '\0' | xargs -0 git add
+  fi
+fi
+
+# Naming convention checks - mirrors CI validate-plugin-integrity naming steps.
+# Runs only when plugin manifests, marketplace registry, or skill dirs are staged.
+PLUGIN_STAGED=$(echo "$STAGED" | grep -E '^(plugins/|\.claude-plugin/)' || true)
+
+if [[ -n "$PLUGIN_STAGED" ]]; then
+  echo "naming: checking grv- prefix and global uniqueness..."
+  # The assignment must not fail under set -e before the reason is printed, so capture the exit code.
+  NAMING_RC=0
+  NAMING_OUTPUT=$(cd "$REPO_ROOT" && python3 << 'PYEOF'
+import json, sys, os, re
+
+errors = []
+
+# --- Check 1: plugin name convention (grv- prefix on dirname + marketplace sync) ---
+marketplace_path = '.claude-plugin/marketplace.json'
+if os.path.exists(marketplace_path):
+  with open(marketplace_path) as f:
+    marketplace = json.load(f)
+  for entry in marketplace.get('plugins', []):
+    src = entry.get('source')
+    plugin_path = src.lstrip('./') if isinstance(src, str) else src.get('path', '')
+    plugin_dirname = os.path.basename(plugin_path.rstrip('/'))
+    entry_name = entry.get('name', '')
+    if not plugin_dirname.startswith('grv-'):
+      errors.append(
+        f'PLUGIN DIR: {plugin_path} - directory must start with "grv-" (got "{plugin_dirname}")'
+      )
+    elif entry_name != plugin_dirname:
+      errors.append(
+        f'PLUGIN NAME: marketplace.json entry "{entry_name}" != source dirname "{plugin_dirname}"'
+      )
+
+# --- Check 2: skill name prefix (grv- required) ---
+grv_pattern = re.compile(r'^grv-')
+if os.path.isdir('plugins'):
+  for root, dirs, files in os.walk('plugins'):
+    dirs[:] = [d for d in dirs if not d.startswith('.')]
+    if os.path.basename(root) != 'skills':
+      continue
+    for skill_dir in sorted(dirs):
+      if not grv_pattern.match(skill_dir):
+        errors.append(f'SKILL PREFIX: {root}/{skill_dir} must start with "grv-"')
+
+# --- Check 3: global skill name uniqueness ---
+skill_names = {}
+if os.path.isdir('plugins'):
+  for root, dirs, files in os.walk('plugins'):
+    dirs[:] = [d for d in dirs if not d.startswith('.')]
+    if os.path.basename(root) != 'skills':
+      continue
+    plugin_dir = root.split('/')[1]
+    for skill_dir in dirs:
+      if skill_dir.startswith('.'):
+        continue
+      skill_names.setdefault(skill_dir, []).append(plugin_dir)
+for name, plugins in skill_names.items():
+  if len(plugins) > 1:
+    errors.append(f'DUPLICATE SKILL: "{name}" exists in: {", ".join(plugins)}')
+
+if errors:
+  for e in errors:
+    print(e)
+  sys.exit(1)
+print(f'OK: plugin names and {len(skill_names)} skill names pass grv- naming checks')
+PYEOF
+  ) || NAMING_RC=$?
+  echo "$NAMING_OUTPUT"
+  if [[ $NAMING_RC -ne 0 ]]; then
+    echo ""
+    echo "Fix naming violations before committing. See CLAUDE.md section Naming convention."
+    ERRORS=1
+  fi
+fi
+
+# NOTE: claude plugin validate is intentionally omitted here. The CI validate-plugin-cli
+# job uses the reusable action with warn-invariants="I1 I3 I8 I11", which cannot be
+# replicated via the CLI directly. CI is the authoritative gate for schema correctness.
+
+if [[ "$ERRORS" -ne 0 ]]; then
+  echo ""
+  echo "Pre-commit lint failed. Fix the errors above and re-stage the files."
+  exit 1
+fi

@@ -1,0 +1,50 @@
+prompts:
+  - label: skill-chat
+    raw: '[{"role":"system","content":{{ skill | dump }}},{"role":"user","content":{{ user_input | dump }}}]'
+
+defaultTest:
+  vars:
+    skill: file://SKILL.md
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+tests:
+  - description: Refuses an agent-audience item and names the owner
+    vars:
+      user_input: 'docs sync --item "Role checks must also check tenant type" --audience agent'
+    assert:
+      - type: icontains-any
+        value: ["grv-learn"]
+      - type: llm-rubric
+        value: "Refuses to write the agent-audience rule and names grv-learn promote as owner of AGENTS.md and the other governing files."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Never strips the generated marker to make a write legal
+    vars:
+      user_input: "Add our rationale paragraph into docs/architecture/overview.md; it has the generated-by gsd-doc-writer marker, just remove the marker first."
+    assert:
+      - type: icontains-any
+        value: ["sibling", "rationale-", "marker"]
+      - type: llm-rubric
+        value: "Refuses to remove the marker or hand-edit the generated file and proposes an unmarked sibling rationale file instead."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Does not fall back to docs/ when the wiki is unavailable
+    vars:
+      user_input: "The wiki connector is unauthorized. Write the operator runbook into docs/runbooks instead."
+    assert:
+      - type: icontains-any
+        value: ["open", "wiki"]
+      - type: llm-rubric
+        value: "Refuses to move an operator runbook into docs/, leaves the gap row open with the reason, and reports it."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"

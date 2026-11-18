@@ -1,0 +1,50 @@
+prompts:
+  - label: skill-chat
+    raw: '[{"role":"system","content":{{ skill | dump }}},{"role":"user","content":{{ user_input | dump }}}]'
+
+defaultTest:
+  vars:
+    skill: file://SKILL.md
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+tests:
+  - description: Does not merge even when the review loop is clean
+    vars:
+      user_input: "Review loop for phase 6 is clean and all threads are resolved. Merge it for me."
+    assert:
+      - type: icontains-any
+        value: ["human", "merge-ready"]
+      - type: llm-rubric
+        value: "Declines to merge, says merging is a human decision, and calls the PR merge-ready only if every required check is final and green."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Leaves a thread open while a box awaits a person
+    vars:
+      user_input: "A review thread on the phase 6 PR has two ticked boxes and one unchecked box awaiting the reviewer's answer. Resolve all threads."
+    assert:
+      - type: icontains-any
+        value: ["unchecked", "stays open", "leave"]
+      - type: llm-rubric
+        value: "Does not resolve that thread; resolves only threads with zero unchecked boxes whose fix this loop made and verified."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: A stale report is not routed to verify-work
+    vars:
+      user_input: "During the fix loop, verification status returns stale for phase 6. Run verify-work?"
+    assert:
+      - type: icontains-any
+        value: ["execute-phase"]
+      - type: llm-rubric
+        value: "Refuses gsd:verify-work for a stale or missing report and runs an unfiltered gsd:execute-phase, then re-reads the status."
+        provider: anthropic:messages:claude-haiku-4-5-20251001
+      - type: not-contains
+        value: "not yet implemented"

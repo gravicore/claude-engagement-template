@@ -1,0 +1,4 @@
+node_modules/
+.planning/**
+.claude/worktrees/
+.vscode/

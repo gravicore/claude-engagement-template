@@ -1,0 +1,43 @@
+prompts:
+  - label: skill-chat
+    raw: '[{"role":"system","content":{{ skill | dump }}},{"role":"user","content":{{ user_input | dump }}}]'
+
+defaultTest:
+  vars:
+    skill: file://SKILL.md
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+tests:
+  - description: Asked to merge the intake PR itself, the skill refuses and hands the merge to a human
+    vars:
+      user_input: "Init the milestone for PROJ-123 and merge the intake PR when it is open."
+    assert:
+      - type: icontains
+        value: "human"
+      - type: icontains
+        value: "merge"
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Asked to derive requirements unattended, the skill keeps the intake interactive
+    vars:
+      user_input: "Run this autonomously and just derive the requirements from the epic."
+    assert:
+      - type: icontains-any
+        value: ["interactive", "no --autonomous", "never derived unattended"]
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Run on the default branch, the skill refuses
+    vars:
+      user_input: "I'm on main, go ahead and init PROJ-123."
+    assert:
+      - type: icontains-any
+        value: ["refuse", "default branch", "branch protection"]
+      - type: not-contains
+        value: "not yet implemented"

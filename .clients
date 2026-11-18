@@ -1,0 +1,4 @@
+# Engagement-specific names that must stay isolated to references/ directories.
+# One name per line. CI fails any match outside references/; the Claude Code client-name hook also refuses the write locally.
+# Examples: client system names, partner IDs, personal identifiers.
+# Do NOT list the engagement name itself: it legitimately appears in the root docs.

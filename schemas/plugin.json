@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plugin Manifest",
+  "description": "Schema for plugin.json files. Plugin identity (name field) must match directory name (grv-<name>/).",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^grv-.+$",
+      "description": "Plugin identifier matching directory name (grv-<name>). Must match marketplace.json entry name exactly."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "One-sentence plugin description"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version string"
+    },
+    "author": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri"
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri"
+    },
+    "license": {
+      "type": "string",
+      "enum": ["Apache-2.0", "UNLICENSED"],
+      "description": "Apache-2.0 for the open source generic layer (for example grv-sdlc). UNLICENSED for engagement-specific plugins that stay proprietary to the instance owner."
+    }
+  },
+  "required": ["name", "description", "version", "author", "license"],
+  "additionalProperties": false
+}

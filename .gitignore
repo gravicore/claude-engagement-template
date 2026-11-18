@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*.swo
+.idea/
+
+# Node (future-proofing for any tooling)
+node_modules/
+dist/
+build/
+*.log
+
+# Env / secrets - never commit
+.env
+.env.local
+.env.*.local
+
+# Claude local state (worktrees and cache are local-only)
+.claude/worktrees/
+.claude/cache/
+.claude/*.log
+.claude/settings.local.json
+# settings.json and hooks/ are project config - tracked in git

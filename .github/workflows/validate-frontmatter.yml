@@ -1,0 +1,129 @@
+---
+name: Validate Frontmatter
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/agents/*.md"
+      - "**/skills/*/SKILL.md"
+      - "**/commands/*.md"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or commit to validate (default: current branch)"
+        required: false
+
+jobs:
+  validate-frontmatter:
+    name: Validate frontmatter
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install PyYAML
+        run: python3 -m pip install pyyaml==6.0.1
+
+      - name: Get changed files
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          BASE="${BASE_REF:-main}"
+          git fetch origin "$BASE" --depth=1
+          FILES=$(git diff --name-only --diff-filter=AMRC \
+            "origin/$BASE"...HEAD \
+            | grep -E '(agents/[^/]+\.md|skills/[^/]+/SKILL\.md|commands/[^/]+\.md)$' || true)
+          DELIMITER="$(openssl rand -hex 16)"
+          echo "files<<${DELIMITER}" >> $GITHUB_ENV
+          echo "$FILES" >> $GITHUB_ENV
+          echo "${DELIMITER}" >> $GITHUB_ENV
+
+      - name: Validate frontmatter
+        run: |
+          python3 << 'PYEOF'
+          import yaml
+          import sys
+          import os
+
+          raw = os.environ.get('files', '')
+          files = [f.strip() for f in raw.splitlines() if f.strip()]
+
+          if not files:
+              print('OK: no frontmatter files changed in this PR')
+              sys.exit(0)
+
+          errors = []
+          for filepath in files:
+              if not os.path.exists(filepath):
+                  continue  # deleted files have no frontmatter to validate
+
+              with open(filepath) as f:
+                  content = f.read()
+
+              if not content.startswith('---'):
+                  errors.append(f'{filepath}: missing YAML frontmatter block (file must begin with ---)')
+                  continue
+
+              parts = content.split('---', 2)
+              if len(parts) < 3:
+                  errors.append(f'{filepath}: malformed frontmatter - missing closing ---')
+                  continue
+
+              try:
+                  frontmatter = yaml.safe_load(parts[1])
+              except yaml.YAMLError as e:
+                  errors.append(f'{filepath}: invalid YAML in frontmatter: {e}')
+                  continue
+
+              if not isinstance(frontmatter, dict):
+                  errors.append(f'{filepath}: frontmatter must be a YAML mapping (got {type(frontmatter).__name__})')
+                  continue
+
+              # D-02: Agents require name + description (matches official spec)
+              if '/agents/' in filepath:
+                  if not frontmatter.get('name'):
+                      errors.append(f'{filepath}: agent files require "name" in frontmatter')
+                  if not frontmatter.get('description'):
+                      errors.append(f'{filepath}: agent files require "description" in frontmatter')
+
+              # D-01: Skills require BOTH description AND allowed-tools (Gravicore-strict)
+              elif '/skills/' in filepath and filepath.endswith('SKILL.md'):
+                  if not frontmatter.get('description'):
+                      errors.append(f'{filepath}: SKILL.md files require "description" in frontmatter')
+                  if 'allowed-tools' not in frontmatter:
+                      errors.append(
+                          f'{filepath}: SKILL.md files require "allowed-tools" in frontmatter'
+                          ' (D-01: Gravicore-strict)'
+                      )
+                  # D-05: "name" is optional in Claude Code (it defaults to the directory name); this repo
+                  # requires it and requires it to equal the directory so the two can never diverge.
+                  skill_dir = os.path.basename(os.path.dirname(filepath))
+                  if frontmatter.get('name') != skill_dir:
+                      errors.append(
+                          f'{filepath}: SKILL.md "name" must equal its directory name "{skill_dir}"'
+                          f' (got {frontmatter.get("name")!r})'
+                      )
+
+              # D-03: Commands require description
+              elif '/commands/' in filepath:
+                  if not frontmatter.get('description'):
+                      errors.append(f'{filepath}: command files require "description" in frontmatter')
+
+          if errors:
+              print(f'ERROR: frontmatter validation failed ({len(errors)} issue(s)):')
+              for err in errors:
+                  print(f'  - {err}')
+              print()
+              print('Remediation:')
+              print('  SKILL.md files: add "name" (equal to the directory name), "description" and')
+              print('  "allowed-tools" to the YAML frontmatter block')
+              print('  Agent .md files: add "name" and "description" to YAML frontmatter block')
+              print('  Command .md files: add "description" to YAML frontmatter block')
+              sys.exit(1)
+
+          print(f'OK: {len(files)} file(s) passed frontmatter validation')
+          PYEOF

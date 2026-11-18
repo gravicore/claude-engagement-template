@@ -1,0 +1,51 @@
+---
+name: Scan Plugins
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".claude-plugin/marketplace.json"
+      - ".github/policy/**"
+  workflow_dispatch:
+    inputs:
+      scan_all:
+        description: "Scan all plugins in marketplace (default: false - only changed plugins)"
+        required: false
+        type: boolean
+        default: false
+
+permissions: {} # deny all at workflow level; jobs grant only what they need
+
+jobs:
+  scan-plugins:
+    name: Scan plugins for security issues
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The scan needs the engagement's API secret and a real marketplace name, so it waits for init.
+      - name: Detect template state
+        id: state
+        run: |
+          if bash scripts/template-state.sh >/dev/null; then
+            echo "template=true" >> "$GITHUB_OUTPUT"
+            echo "Template state: plugin scan skipped until init has run"
+          else
+            echo "template=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # yamllint disable-line rule:line-length
+      - uses: anthropics/claude-plugins-community/.github/actions/scan-plugins@b277757588871fe55b2620de8c6dfda470e2e9d8
+        if: steps.state.outputs.template != 'true'
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          policy-prompt: .github/policy/prompt.md
+          fail-on-findings: "true"
+          scan-all-external: ${{ inputs.scan_all || 'false' }}
+          claude-cli-version: "2.1.133" # pin; update intentionally (same pattern as validate-plugin-cli)

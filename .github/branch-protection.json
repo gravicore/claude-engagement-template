@@ -1,0 +1,29 @@
+{
+  "_comment": "REFERENCE COPY of the intended branch protection for main on {{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}. Applying or changing branch protection or rulesets is a human repo-admin act, never an agent's: see TEMPLATE.md. required_status_checks lists the eight jobs of validate.yml, which run on every pull request to main; validate-frontmatter.yml and scan-plugins.yml are path-filtered and deliberately not required, because a required check that never runs blocks the PR. If applying through the API, strip this key first (jq 'del(._comment)') and send the result to the branch protection endpoint for main.",
+  "required_status_checks": {
+    "strict": false,
+    "contexts": [
+      "Validate plugin integrity",
+      "Scan secrets",
+      "Check CODEOWNERS entries",
+      "Lint YAML workflows",
+      "Lint SKILL.md files",
+      "Format check",
+      "Lint shell scripts",
+      "Validate plugins (claude CLI)"
+    ]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": false,
+    "require_last_push_approval": false,
+    "required_approving_review_count": 1
+  },
+  "required_linear_history": true,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "block_creations": false,
+  "required_conversation_resolution": true,
+  "restrictions": null
+}

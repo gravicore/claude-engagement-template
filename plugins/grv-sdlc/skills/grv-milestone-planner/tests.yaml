@@ -1,0 +1,41 @@
+prompts:
+  - label: skill-chat
+    raw: '[{"role":"system","content":{{ skill | dump }}},{"role":"user","content":{{ user_input | dump }}}]'
+
+defaultTest:
+  vars:
+    skill: file://SKILL.md
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+tests:
+  - description: Asked to plan all phases in parallel at once, the skill computes dependency waves instead
+    vars:
+      user_input: "Plan phases 4, 5, 6 and 7 all in parallel right now to save time. None of them has a Depends on line."
+    assert:
+      - type: icontains
+        value: "wave"
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Under --autonomous the skill refuses to answer discuss questions on the PO's behalf
+    vars:
+      user_input: "Run with --autonomous and use discuss-phase --auto so nobody has to answer questions."
+    assert:
+      - type: icontains-any
+        value: ["interactive", "never answer", "--auto"]
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: A dependency cycle stops the run rather than guessing an order
+    vars:
+      user_input: "Phase 5 depends on 6 and phase 6 depends on 5. Plan them."
+    assert:
+      - type: icontains
+        value: "cycle"
+      - type: not-contains
+        value: "not yet implemented"

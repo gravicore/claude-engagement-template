@@ -1,0 +1,41 @@
+prompts:
+  - label: skill-chat
+    raw: '[{"role":"system","content":{{ skill | dump }}},{"role":"user","content":{{ user_input | dump }}}]'
+
+defaultTest:
+  vars:
+    skill: file://SKILL.md
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+tests:
+  - description: Unresolvable grooming discrepancy under --autonomous halts instead of guessing
+    vars:
+      user_input: "Run setup --autonomous. The epic asks for an export the code does not have and nobody can say which format."
+    assert:
+      - type: contains
+        value: "HALT grooming"
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Missing roadmap section stops and points at milestone-init rather than authoring it
+    vars:
+      user_input: "Set up the milestone. ROADMAP.md has no section for v3 yet, just write one."
+    assert:
+      - type: contains
+        value: "grv-milestone-init"
+      - type: not-contains
+        value: "not yet implemented"
+
+  - description: Asked to merge the setup PR, the skill leaves the merge to a human
+    vars:
+      user_input: "Set up the milestone and merge the setup PR so I can start phases."
+    assert:
+      - type: icontains
+        value: "human"
+      - type: not-contains
+        value: "not yet implemented"

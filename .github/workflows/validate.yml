@@ -1,0 +1,580 @@
+---
+name: Validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - "gsd/**"
+    paths-ignore:
+      - ".planning/**"
+      - "docs/**"
+
+jobs:
+  # D-04: Consolidated Python validation - BOOT-01 through BOOT-06
+  validate-plugin-integrity:
+    name: Validate plugin integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jsonschema
+        run: python3 -m pip install jsonschema==4.20.0
+
+      - name: Validate schemas (plugin.json)
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import jsonschema
+          import sys
+          import os
+
+          schema_path = 'schemas/plugin.json'
+          if not os.path.exists(schema_path):
+              print(f'ERROR: Schema file missing: {schema_path}')
+              sys.exit(1)
+
+          with open(schema_path) as f:
+              schema = json.load(f)
+
+          errors = []
+          plugin_dirs = []
+          if os.path.isdir('plugins'):
+              plugin_dirs = [
+                  d for d in os.listdir('plugins')
+                  if os.path.isdir(f'plugins/{d}')
+              ]
+
+          for slug in plugin_dirs:
+              manifest = f'plugins/{slug}/.claude-plugin/plugin.json'
+              if not os.path.exists(manifest):
+                  errors.append(f'MISSING: {manifest}')
+                  continue
+              with open(manifest) as f:
+                  try:
+                      plugin = json.load(f)
+                  except json.JSONDecodeError as e:
+                      errors.append(f'INVALID JSON: {manifest}: {e}')
+                      continue
+              try:
+                  jsonschema.validate(plugin, schema)
+                  print(f'OK: {manifest}')
+              except jsonschema.ValidationError as e:
+                  errors.append(f'SCHEMA ERROR in {manifest}: {e.message}')
+
+          if errors:
+              for err in errors:
+                  print(err)
+              sys.exit(1)
+          print(f'OK: {len(plugin_dirs)} plugin(s) validated against schema')
+          PYEOF
+
+      - name: Validate schemas (marketplace.json)
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import jsonschema
+          import sys
+          import os
+
+          schema_path = 'schemas/marketplace-entry.json'
+          if not os.path.exists(schema_path):
+              print(f'ERROR: Schema file missing: {schema_path}')
+              sys.exit(1)
+
+          with open(schema_path) as f:
+              schema = json.load(f)
+
+          with open('.claude-plugin/marketplace.json') as f:
+              marketplace = json.load(f)
+
+          errors = []
+          entries = marketplace.get('plugins', [])
+          for entry in entries:
+              try:
+                  jsonschema.validate(entry, schema)
+                  print(f'OK: marketplace entry {entry.get("name", "unknown")}')
+              except jsonschema.ValidationError as e:
+                  errors.append(f'SCHEMA ERROR in marketplace entry: {e.message}')
+
+          if errors:
+              for err in errors:
+                  print(err)
+              sys.exit(1)
+          print(f'OK: {len(entries)} marketplace entry/entries validated against schema')
+          PYEOF
+
+      - name: Validate name (D-04)
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import sys
+          import os
+          import re
+
+          errors = []
+          if os.path.isdir('plugins'):
+              for slug in sorted(os.listdir('plugins')):
+                  plugin_path = f'plugins/{slug}'
+                  if not os.path.isdir(plugin_path):
+                      continue
+                  manifest = f'{plugin_path}/.claude-plugin/plugin.json'
+                  if not os.path.exists(manifest):
+                      continue  # validate-schemas step catches missing manifests
+                  with open(manifest) as f:
+                      plugin = json.load(f)
+                  plugin_name = plugin.get('name', '')
+                  if not plugin_name:
+                      errors.append(f'MISSING name in {manifest}')
+                  elif not re.match(r'^grv-.+$', plugin_name):
+                      errors.append(
+                          f'INVALID name in {manifest}: "{plugin_name}" does not match ^grv-.+$'
+                      )
+                  if plugin_name and plugin_name != slug:
+                      errors.append(
+                          f'NAME MISMATCH in {manifest}: '
+                          f'plugin.json name="{plugin_name}" != {slug}'
+                      )
+          if errors:
+              for err in errors:
+                  print(err)
+              sys.exit(1)
+          print('OK: all plugins have valid name fields')
+          PYEOF
+
+      - name: Check version drift (BOOT-02)
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import sys
+          import os
+
+          with open('.claude-plugin/marketplace.json') as f:
+              marketplace = json.load(f)
+
+          errors = []
+          entries = marketplace.get('plugins', [])
+          for entry in entries:
+              src = entry.get('source')
+              if isinstance(src, str):
+                  plugin_path = src.lstrip('./')
+              elif isinstance(src, dict):
+                  plugin_path = src.get('path', '')
+              else:
+                  plugin_path = ''
+              if not plugin_path:
+                  errors.append(f'MISSING source.path in marketplace entry: {entry.get("name")}')
+                  continue
+
+              manifest = f'{plugin_path}/.claude-plugin/plugin.json'
+              if not os.path.exists(manifest):
+                  continue  # validate-schemas job will catch missing manifests
+
+              with open(manifest) as f:
+                  plugin = json.load(f)
+
+              plugin_version = plugin.get('version', '')
+              entry_version = entry.get('version', '')
+
+              if plugin_version != entry_version:
+                  errors.append(
+                      f'VERSION DRIFT: {plugin_path} - '
+                      f'plugin.json={plugin_version}, marketplace.json={entry_version}'
+                  )
+              else:
+                  print(f'OK: {plugin_path} version {plugin_version} matches')
+
+          if errors:
+              for err in errors:
+                  print(err)
+              sys.exit(1)
+          print(f'OK: {len(entries)} entry/entries have consistent versions')
+          PYEOF
+
+      - name: Check client name isolation (BOOT-04)
+        run: |
+          if bash scripts/template-state.sh >/dev/null; then
+            echo "OK: template state (placeholders unresolved) - client name check skipped until init has run"
+            exit 0
+          fi
+          python3 << 'PYEOF'
+          import re
+          import sys
+          import os
+
+          if not os.path.exists('.clients'):
+              print('OK: .clients file not found - skipping check')
+              sys.exit(0)
+
+          with open('.clients') as f:
+              clients = [
+                  line.strip() for line in f
+                  if line.strip() and not line.strip().startswith('#')
+              ]
+
+          if not clients:
+              print('OK: no clients configured - skipping check')
+              sys.exit(0)
+
+          pattern = r'\b(' + '|'.join(re.escape(c) for c in clients) + r')\b'
+          regex = re.compile(pattern, re.IGNORECASE)
+
+          errors = []
+          for root, dirs, files in os.walk('.'):
+              dirs[:] = [
+                  d for d in dirs
+                  if not d.startswith('.') and d != 'references'
+              ]
+              for fname in files:
+                  if not fname.endswith(('.md', '.json', '.yml', '.yaml', '.sh')):
+                      continue
+                  fpath = os.path.join(root, fname)
+                  if '/references/' in fpath or fpath.startswith('./references/'):
+                      continue
+                  try:
+                      with open(fpath) as fh:
+                          content = fh.read()
+                  except (UnicodeDecodeError, PermissionError):
+                      continue
+                  match = regex.search(content)
+                  if match:
+                      errors.append(f'CLIENT NAME "{match.group()}" in {fpath}')
+
+          if errors:
+              for err in errors:
+                  print(f'ERROR: {err}')
+              print('Client names are only allowed in plugins/<name>/references/ subdirectories.')
+              sys.exit(1)
+          print(f'OK: no client names found outside references/ (checked {len(clients)} client(s))')
+          PYEOF
+
+      - name: Check stub format (BOOT-05)
+        run: |
+          python3 << 'PYEOF'
+          import sys
+          import os
+
+          errors = []
+          for root, dirs, files in os.walk('plugins'):
+              dirs[:] = [d for d in dirs if not d.startswith('.')]
+              for fname in files:
+                  if fname != 'SKILL.md':
+                      continue
+                  fpath = os.path.join(root, fname)
+                  with open(fpath) as f:
+                      content = f.read()
+                  if 'allowed-tools: []' not in content:
+                      continue
+                  if 'not yet implemented' not in content.lower():
+                      errors.append(fpath)
+
+          if errors:
+              for fpath in errors:
+                  print(f'ERROR: Stub SKILL.md missing "not yet implemented": {fpath}')
+              sys.exit(1)
+          print('OK: all stub SKILL.md files have required text')
+          PYEOF
+
+      - name: Check skill length (BOOT-06)
+        run: |
+          python3 << 'PYEOF'
+          import sys
+          import os
+
+          warnings = []
+          for root, dirs, files in os.walk('plugins'):
+              dirs[:] = [d for d in dirs if not d.startswith('.')]
+              for fname in files:
+                  if fname != 'SKILL.md':
+                      continue
+                  fpath = os.path.join(root, fname)
+                  with open(fpath) as f:
+                      lines = f.readlines()
+                  content = ''.join(lines)
+                  if 'allowed-tools: []' in content:
+                      continue
+                  line_count = len(lines)
+                  if line_count > 120:
+                      warnings.append((fpath, line_count))
+
+          if warnings:
+              for fpath, count in warnings:
+                  print(f'WARNING: SKILL.md exceeds 120 lines ({count} lines): {fpath}')
+              print('Non-stub skills should stay under 120 lines for readability.')
+              print('This is a warning only - the PR is not blocked.')
+          else:
+              print('OK: all non-stub SKILL.md files are within 120 lines')
+          sys.exit(0)  # Always exit 0 - non-blocking warning per BOOT-06
+          PYEOF
+
+      - name: Check plugin name convention (grv- prefix + dirname match)
+        run: |
+          python3 << 'PYEOF'
+          import json, sys, os
+
+          with open('.claude-plugin/marketplace.json') as f:
+              marketplace = json.load(f)
+
+          errors = []
+          entries = marketplace.get('plugins', [])
+          for entry in entries:
+              src = entry.get('source')
+              if isinstance(src, str):
+                  plugin_path = src.lstrip('./')
+              elif isinstance(src, dict):
+                  plugin_path = src.get('path', '')
+              else:
+                  plugin_path = ''
+
+              if not plugin_path:
+                  errors.append(f'MISSING source in marketplace entry: {entry.get("name")}')
+                  continue
+
+              plugin_dirname = os.path.basename(plugin_path.rstrip('/'))
+              entry_name = entry.get('name', '')
+
+              if not plugin_dirname.startswith('grv-'):
+                  errors.append(
+                      f'INVALID plugin directory: {plugin_path} - '
+                      f'plugin directories must start with "grv-" (got "{plugin_dirname}")'
+                  )
+              elif entry_name != plugin_dirname:
+                  errors.append(
+                      f'NAME MISMATCH: marketplace.json entry "{entry_name}" != '
+                      f'source dirname "{plugin_dirname}" for {plugin_path}'
+                  )
+              else:
+                  print(f'OK: {plugin_path} - name "{entry_name}" matches source dirname')
+
+          if errors:
+              for err in errors:
+                  print(err)
+              sys.exit(1)
+          print(f'OK: {len(entries)} plugin(s) have valid grv- names matching source dirname')
+          PYEOF
+
+      - name: Check skill name prefix (grv- required)
+        run: |
+          python3 << 'PYEOF'
+          import sys, os, re
+
+          errors = []
+          grv_pattern = re.compile(r'^grv-')
+
+          if os.path.isdir('plugins'):
+              for root, dirs, files in os.walk('plugins'):
+                  dirs[:] = [d for d in dirs if not d.startswith('.')]
+                  if os.path.basename(root) != 'skills':
+                      continue
+                  for skill_dir in sorted(dirs):
+                      if not grv_pattern.match(skill_dir):
+                          errors.append(
+                              f'INVALID skill name: {root}/{skill_dir} - '
+                              f'skill names must start with "grv-" (got "{skill_dir}")'
+                          )
+
+          if errors:
+              for err in errors:
+                  print(err)
+              sys.exit(1)
+          print('OK: all skill names start with "grv-"')
+          PYEOF
+
+      - name: Check global skill name uniqueness
+        run: |
+          python3 << 'PYEOF'
+          import sys, os
+
+          errors = []
+          skill_names = {}  # skill_name -> list of (plugin_dir, full_path)
+
+          if os.path.isdir('plugins'):
+              for root, dirs, files in os.walk('plugins'):
+                  dirs[:] = [d for d in dirs if not d.startswith('.')]
+                  if os.path.basename(root) != 'skills':
+                      continue
+                  plugin_dir = root.split('/')[1]  # plugins/grv-foo -> grv-foo
+                  for skill_dir in dirs:
+                      if skill_dir.startswith('.'):
+                          continue
+                      full_path = os.path.join(root, skill_dir)
+                      if skill_dir not in skill_names:
+                          skill_names[skill_dir] = []
+                      skill_names[skill_dir].append((plugin_dir, full_path))
+
+          for skill_name, locations in skill_names.items():
+              if len(locations) > 1:
+                  locations_str = ', '.join([f'{p}/{s}' for p, s in locations])
+                  errors.append(
+                      f'DUPLICATE SKILL NAME: "{skill_name}" found in multiple plugins: {locations_str}'
+                  )
+
+          if errors:
+              for err in errors:
+                  print(err)
+              sys.exit(1)
+          print(f'OK: all {len(skill_names)} skill names are globally unique across all plugins')
+          PYEOF
+
+  # BOOT-03: Secret scanning via gitleaks CLI
+  scan-secrets:
+    name: Scan secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION="8.18.4"
+          TARBALL="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          BASE_URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          wget -q "${BASE_URL}/${TARBALL}"
+          wget -q "${BASE_URL}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          tar -xzf "${TARBALL}"
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Run gitleaks
+        run: gitleaks detect --source . --redact --no-banner --config .gitleaks.toml
+
+  # BOOT-07: Verify every plugins/<slug>/ has a CODEOWNERS entry
+  check-codeowners:
+    name: Check CODEOWNERS entries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify every plugins/<slug>/ directory has a CODEOWNERS entry
+        run: |
+          python3 << 'PYEOF'
+          import sys
+          import os
+
+          if not os.path.exists('CODEOWNERS'):
+              print('ERROR: CODEOWNERS file missing')
+              sys.exit(1)
+
+          with open('CODEOWNERS') as f:
+              codeowners_content = f.read()
+
+          plugin_dirs = []
+          if os.path.isdir('plugins'):
+              plugin_dirs = [
+                  d for d in os.listdir('plugins')
+                  if os.path.isdir(f'plugins/{d}') and not d.startswith('.')
+              ]
+
+          if not plugin_dirs:
+              print('OK: no plugin directories found - nothing to verify')
+              sys.exit(0)
+
+          errors = []
+          for slug in plugin_dirs:
+              has_wildcard = 'plugins/*' in codeowners_content
+              has_specific = f'plugins/{slug}' in codeowners_content
+              if not has_wildcard and not has_specific:
+                  errors.append(f'MISSING CODEOWNERS entry for plugins/{slug}/')
+
+          if errors:
+              for err in errors:
+                  print(f'ERROR: {err}')
+              print('Add entries for new plugin directories to CODEOWNERS.')
+              sys.exit(1)
+          print(f'OK: {len(plugin_dirs)} plugin directory/directories covered by CODEOWNERS')
+          PYEOF
+
+  # D-14: yamllint strict mode on .github/workflows/ files
+  yamllint-workflows:
+    name: Lint YAML workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip3 install yamllint==1.35.1
+
+      - name: Run yamllint on workflow files
+        run: yamllint -c .yamllint.yml .github/workflows/
+
+  # D-15: markdownlint default ruleset on SKILL.md files
+  markdownlint-skills:
+    name: Lint SKILL.md files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Run markdownlint on SKILL.md files
+        run: |
+          SKILL_FILES=$(find plugins -name "SKILL.md" 2>/dev/null || true)
+          if [ -z "$SKILL_FILES" ]; then
+            echo "OK: no SKILL.md files found - skipping markdownlint"
+            exit 0
+          fi
+          echo "$SKILL_FILES" | xargs markdownlint --config .markdownlint.json
+
+  # BOOT-19: Prettier + shfmt formatting check
+  format-check:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          install: true
+      - name: Check formatting with Prettier
+        run: npx prettier@3.8.3 --check "**/*.{md,json,yml,yaml}" --ignore-path .prettierignore
+      - name: Check shell script formatting with shfmt
+        run: |
+          find . -name "*.sh" -not -path "./.git/*" -print0 \
+            | xargs -0 shfmt -i 2 -ci -d
+
+  # BOOT-18: shellcheck on all .sh files
+  lint-shell-scripts:
+    name: Lint shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+      - name: Run shellcheck
+        run: find . -name "*.sh" -not -path "./.git/*" -print0 | xargs -0 shellcheck
+
+  # CI-01: Official claude plugin validate via reusable action
+  validate-plugin-cli:
+    name: Validate plugins (claude CLI)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The registry name is a placeholder until scripts/init-engagement.sh has run, so the CLI cannot validate it.
+      - name: Detect template state
+        id: state
+        run: |
+          if bash scripts/template-state.sh >/dev/null; then
+            echo "template=true" >> "$GITHUB_OUTPUT"
+            echo "Template state: claude plugin validate skipped until init has run"
+          else
+            echo "template=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # yamllint disable-line rule:line-length
+      - uses: anthropics/claude-plugins-community/.github/actions/validate-plugins@f846a0bcb0e721b1f93d60e8b73e91dafc4a1e87
+        if: steps.state.outputs.template != 'true'
+        with:
+          marketplace-path: .claude-plugin/marketplace.json
+          warn-invariants: "I1 I3 I8 I11"
+          claude-cli-version: "2.1.133" # pin; update intentionally when upgrading

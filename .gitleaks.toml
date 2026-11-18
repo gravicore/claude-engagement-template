@@ -1,0 +1,7 @@
+[allowlist]
+  description = "Known-fake credentials used in documentation examples"
+  regexes = [
+    # Canonical AWS documentation example key - not a real credential
+    # See: https://docs.aws.amazon.com/general/latest/gr/aws-access-keys-best-practices.html
+    "AKIAIOSFODNN7EXAMPLE",
+  ]

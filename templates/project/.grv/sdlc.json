@@ -1,0 +1,77 @@
+{
+  "project": {
+    "name": "Example Product",
+    "key": "example"
+  },
+  "repo": {
+    "owner": "example-org",
+    "name": "example-app",
+    "defaultBranch": "main",
+    "requiredChecks": ["Lint & Type Check", "Test", "Build", "Security Scan"],
+    "mergePolicy": "squash"
+  },
+  "tracker": {
+    "type": "jira",
+    "cloudId": "00000000-0000-0000-0000-000000000000",
+    "projectKey": "PROJ",
+    "transitions": {
+      "selected": "11",
+      "inProgress": "21",
+      "uat": "31",
+      "done": "41"
+    },
+    "labels": {
+      "provenance": "ai",
+      "stage": {
+        "discussing": "gsd-discussing",
+        "planning": "gsd-planning",
+        "executing": "gsd-executing",
+        "halted": "gsd-halted"
+      }
+    },
+    "releaseGateEpic": "PROJ-1"
+  },
+  "owners": {
+    "productOwner": "Example Product Owner",
+    "leadEngineer": "Example Lead Engineer"
+  },
+  "environments": [
+    {
+      "name": "preview",
+      "url": null,
+      "dataClass": "synthetic",
+      "promotion": "auto"
+    },
+    {
+      "name": "staging",
+      "url": "https://staging.example.com",
+      "dataClass": "synthetic",
+      "promotion": "human"
+    },
+    {
+      "name": "production",
+      "url": null,
+      "dataClass": "production",
+      "promotion": "human"
+    }
+  ],
+  "chat": {
+    "type": "slack",
+    "channel": "proj-example"
+  },
+  "docs": {
+    "type": "confluence",
+    "spaceId": "000000",
+    "parentPageId": "000001"
+  },
+  "compliance": {
+    "regimes": []
+  },
+  "engine": {
+    "gsdCoreMinVersion": "1.19.0"
+  },
+  "verification": {
+    "localStack": null,
+    "preview": "per-pr"
+  }
+}
