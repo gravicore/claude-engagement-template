@@ -1,4 +1,17 @@
 # Reference copy. Replace the team below with a team that exists in the hosting org.
-# Every path is owned by the engagement maintainers.
-*          @{{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}-maintainers
-plugins/*  @{{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}-maintainers
+#
+# One line per plugin directory, naming the team that owns that plugin. CI (scripts/check-plugin-owners.py) fails a
+# plugin directory that has no line of its own: the catch-all below does not count, and neither does a plugins/*
+# wildcard. The same owner must be named in plugins/<plugin>/references/OWNERS.md.
+# scripts/new-plugin.py adds the line for a new plugin.
+
+# Catch-all: everything not matched below.
+*                  @{{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}-maintainers
+
+# The marketplace registry, CI and repo tooling stay with the marketplace maintainers.
+/.claude-plugin/   @{{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}-maintainers
+/.github/          @{{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}-maintainers
+/scripts/          @{{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}-maintainers
+
+# Plugins: one line each.
+/plugins/sdlc/     @{{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}-maintainers

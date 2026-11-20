@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Plugin conventions
 
-Plugin authoring: `docs/contributing/SKILL-AUTHORING.md`. A rule that applies only to one plugin's files goes in `.claude/rules/<plugin>.md` with a `paths:` list in its frontmatter (for example `plugins/sdlc/**`), so it loads only when Claude works on matching files. No such rule exists yet, so the directory does not either: Claude Code loads every `.md` file under `.claude/rules/` that has no `paths:` field in every session, so a placeholder README there would become an always-on rule.
+Plugin authoring: `docs/contributing/SKILL-AUTHORING.md`. How the marketplace is divided into plugins, who owns each and how to add one: `docs/PLUGIN-TAXONOMY.md` (`python3 scripts/new-plugin.py` scaffolds a plugin). A rule that applies only to one plugin's files goes in `.claude/rules/<plugin>.md` with a `paths:` list in its frontmatter (for example `plugins/sdlc/**`), so it loads only when Claude works on matching files. Every file in `.claude/rules/` must carry a `paths:` field: Claude Code loads a rule file without one in every session, so a README or placeholder there would become an always-on rule.
 
 ## Project
 

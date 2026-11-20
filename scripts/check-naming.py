@@ -10,6 +10,7 @@ Rule, read from .engagement.json (schema: schemas/engagement.json):
   - Skills inside a generic plugin carry no prefix requirement. Skills inside a prefixed plugin
     start with "<prefix>-".
   - Skill names are unique across all plugins.
+  - Every plugin directory has a marketplace.json entry, and every entry points at its directory.
 
 Template state: while the prefix is still the init placeholder, the prefix checks are skipped with
 an explicit OK line; generic-plugin, name-equality and uniqueness checks still run.
@@ -117,6 +118,11 @@ def main():
                 errors.append(f'MARKETPLACE: entry "{entry.get("name")}" != source directory "{dirname}"')
             elif not os.path.isdir(path):
                 errors.append(f'MARKETPLACE: entry "{dirname}" points at missing directory {path}')
+
+        listed = {e.get('name') for e in marketplace.get('plugins', [])}
+        for plugin in listdirs('plugins'):
+            if plugin not in listed:
+                errors.append(f'MARKETPLACE: plugins/{plugin} has no entry in {MARKETPLACE}, so it cannot be installed')
 
     # Global skill name uniqueness.
     for skill, plugins in sorted(skills.items()):

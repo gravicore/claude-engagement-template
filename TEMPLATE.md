@@ -88,7 +88,10 @@ Do not substitute placeholders by hand and do not run init in the template repo 
 ## 4. Finish setup (manual)
 
 - **CODEOWNERS**: it names a team called `<slug>-maintainers` in the hosting org. Create that team or edit the file to
-  an existing one. A plugin directory without a covering entry fails CI.
+  an existing one, and make the same change in `plugins/sdlc/references/OWNERS.md`. Every plugin directory needs its
+  own CODEOWNERS line and an `OWNERS.md`; CI fails a plugin without both, or where the two name different owners.
+- **More plugins**: this is one marketplace for many plugins. `docs/PLUGIN-TAXONOMY.md` describes the layers and the
+  rules; `python3 scripts/new-plugin.py` scaffolds a new plugin with its owner records.
 - **`.clients`**: list engagement-specific sensitive names one per line (client system names, partner IDs, personal
   identifiers). CI fails any pull request that has them outside `plugins/*/references/` (that is the enforcement), and
   a Claude Code PreToolUse hook refuses a Claude Code write that would add one (a local convenience that Bash

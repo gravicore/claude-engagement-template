@@ -195,6 +195,7 @@ if errors:
 print('OK: all full skills have sibling tests.yaml')
 PYEOF""",
   "python3 scripts/check-naming.py",
+  "python3 scripts/check-plugin-owners.py",
 ]
 
 [tasks.test]

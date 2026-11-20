@@ -17,6 +17,8 @@ by pull request. `TEMPLATE.md` documents both options without picking one.
 - `templates/` - project and document templates used by skills
 - `docs/enablement/` - rollout and client-org setup guidance
 - `docs/contributing/` - skill and plugin authoring and testing guides
+- `docs/PLUGIN-TAXONOMY.md` - how the marketplace is divided into plugins, and who owns each
+- `.claude/rules/` - path-scoped authoring rules, one file per plugin
 - `schemas/` - JSON schemas for `plugin.json` and marketplace entries
 - `.github/` - CI workflows, git hooks, branch-protection reference, PR template, security-scan policy
 - `.claude/` - Claude Code hooks and docs (client-name guard, skill-suffix and stub checks)
@@ -81,6 +83,8 @@ client's own org (in which case the consultancy contributes by pull request).
 
 - `sdlc` - the generic delivery-lifecycle plugin from the template, unprefixed (invoke as `/sdlc:phase-run`).
 - Engagement plugins and their skills are named with the engagement prefix: `{{PREFIX}}-<name>`.
+- One marketplace holds many plugins, each with its own owning team. `docs/PLUGIN-TAXONOMY.md` describes the layers,
+  the ownership records and how to add a plugin (`python3 scripts/new-plugin.py`).
 
 ## Three-surface compatibility
 

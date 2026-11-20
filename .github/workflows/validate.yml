@@ -320,51 +320,15 @@ jobs:
       - name: Run gitleaks
         run: gitleaks detect --source . --redact --no-banner --config .gitleaks.toml
 
-  # BOOT-07: Verify every plugins/<slug>/ has a CODEOWNERS entry
+  # BOOT-07: every plugins/<slug>/ has its own CODEOWNERS line and a complete references/OWNERS.md
   check-codeowners:
     name: Check CODEOWNERS entries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify every plugins/<slug>/ directory has a CODEOWNERS entry
-        run: |
-          python3 << 'PYEOF'
-          import sys
-          import os
-
-          if not os.path.exists('CODEOWNERS'):
-              print('ERROR: CODEOWNERS file missing')
-              sys.exit(1)
-
-          with open('CODEOWNERS') as f:
-              codeowners_content = f.read()
-
-          plugin_dirs = []
-          if os.path.isdir('plugins'):
-              plugin_dirs = [
-                  d for d in os.listdir('plugins')
-                  if os.path.isdir(f'plugins/{d}') and not d.startswith('.')
-              ]
-
-          if not plugin_dirs:
-              print('OK: no plugin directories found - nothing to verify')
-              sys.exit(0)
-
-          errors = []
-          for slug in plugin_dirs:
-              has_wildcard = 'plugins/*' in codeowners_content
-              has_specific = f'plugins/{slug}' in codeowners_content
-              if not has_wildcard and not has_specific:
-                  errors.append(f'MISSING CODEOWNERS entry for plugins/{slug}/')
-
-          if errors:
-              for err in errors:
-                  print(f'ERROR: {err}')
-              print('Add entries for new plugin directories to CODEOWNERS.')
-              sys.exit(1)
-          print(f'OK: {len(plugin_dirs)} plugin directory/directories covered by CODEOWNERS')
-          PYEOF
+      - name: Verify every plugin has a named owner
+        run: python3 scripts/check-plugin-owners.py
 
   # D-14: yamllint strict mode on .github/workflows/ files
   yamllint-workflows:

@@ -29,7 +29,7 @@
     },
     {
       "file": "CODEOWNERS",
-      "purpose": "Reference copy of code ownership. Every plugin directory must be covered (CI check).",
+      "purpose": "Reference copy of code ownership. Every plugin directory needs its own line (CI check: scripts/check-plugin-owners.py); a wildcard does not count.",
       "consumers": ["github", "ci"]
     },
     {
@@ -63,18 +63,28 @@
       "consumers": ["developers", "all agents"]
     },
     {
+      "file": "docs/PLUGIN-TAXONOMY.md",
+      "purpose": "How the marketplace is divided into plugins (generic, shared, engineering, department), who owns each, where an instruction lives, and how to add a plugin.",
+      "consumers": ["humans", "all agents"]
+    },
+    {
       "file": "schemas/",
       "purpose": "JSON Schema definitions for plugin.json, marketplace-entry.json and engagement.json (the root .engagement.json). Used by CI validation and mise run validate.",
       "consumers": ["ci", "mise"]
     },
     {
       "file": "scripts/",
-      "purpose": "Repo tooling: init-engagement.sh (one-time placeholder fill-in for a new instance), template-state.sh (CI helper that detects an uninitialized template) and check-naming.py (the plugin and skill naming rule, run by CI, the pre-commit hook and mise run validate).",
+      "purpose": "Repo tooling: init-engagement.sh (one-time placeholder fill-in for a new instance), template-state.sh (CI helper that detects an uninitialized template), check-naming.py (the plugin and skill naming rule), check-plugin-owners.py (every plugin has its own CODEOWNERS line and a complete OWNERS.md) and new-plugin.py (scaffolds a new engagement plugin with its owner records). The two checks run in CI and in mise run validate.",
       "consumers": ["humans", "ci"]
     },
     {
       "file": ".claude/docs/",
       "purpose": "Claude Code-specific docs: VALIDATION.md (CI gate descriptions, hook limits), naming-convention.md (imported into CLAUDE.md).",
+      "consumers": ["claude-code"]
+    },
+    {
+      "file": ".claude/rules/",
+      "purpose": "Path-scoped authoring rules, one file per plugin, each with a paths: list so it loads only for that plugin's files.",
       "consumers": ["claude-code"]
     },
     {
