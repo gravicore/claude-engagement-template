@@ -1,15 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "{{MARKETPLACE_NAME}}",
-  "description": "Gravicore engagement-tier Claude plugins for {{ENGAGEMENT_NAME}}.",
+  "description": "Engagement-tier Claude plugins for {{ENGAGEMENT_NAME}}.",
   "owner": {
-    "name": "Gravicore"
+    "name": "{{ENGAGEMENT_NAME}}"
   },
   "plugins": [
     {
-      "name": "grv-sdlc",
+      "name": "sdlc",
       "description": "Delivery-lifecycle skills driving gsd-core with Jira tracking.",
-      "source": "./plugins/grv-sdlc",
+      "source": "./plugins/sdlc",
       "version": "0.1.0"
     }
   ]

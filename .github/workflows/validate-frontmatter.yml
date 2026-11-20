@@ -90,14 +90,14 @@ jobs:
                   if not frontmatter.get('description'):
                       errors.append(f'{filepath}: agent files require "description" in frontmatter')
 
-              # D-01: Skills require BOTH description AND allowed-tools (Gravicore-strict)
+              # D-01: Skills require BOTH description AND allowed-tools (repo-strict)
               elif '/skills/' in filepath and filepath.endswith('SKILL.md'):
                   if not frontmatter.get('description'):
                       errors.append(f'{filepath}: SKILL.md files require "description" in frontmatter')
                   if 'allowed-tools' not in frontmatter:
                       errors.append(
                           f'{filepath}: SKILL.md files require "allowed-tools" in frontmatter'
-                          ' (D-01: Gravicore-strict)'
+                          ' (D-01: repo-strict)'
                       )
                   # D-05: "name" is optional in Claude Code (it defaults to the directory name); this repo
                   # requires it and requires it to equal the directory so the two can never diverge.

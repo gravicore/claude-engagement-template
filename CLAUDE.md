@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Plugin conventions
 
-Plugin authoring: `docs/contributing/SKILL-AUTHORING.md`. A rule that applies only to one plugin's files goes in `.claude/rules/<plugin>.md` with a `paths:` list in its frontmatter (for example `plugins/grv-sdlc/**`), so it loads only when Claude works on matching files. No such rule exists yet, so the directory does not either: Claude Code loads every `.md` file under `.claude/rules/` that has no `paths:` field in every session, so a placeholder README there would become an always-on rule.
+Plugin authoring: `docs/contributing/SKILL-AUTHORING.md`. How the marketplace is divided into plugins, who owns each and how to add one: `docs/PLUGIN-TAXONOMY.md` (`python3 scripts/new-plugin.py` scaffolds a plugin). A rule that applies only to one plugin's files goes in `.claude/rules/<plugin>.md` with a `paths:` list in its frontmatter (for example `plugins/sdlc/**`), so it loads only when Claude works on matching files. Every file in `.claude/rules/` must carry a `paths:` field: Claude Code loads a rule file without one in every session, so a README or placeholder there would become an always-on rule.
 
 ## Project
 
@@ -31,7 +31,7 @@ explicit tier decision.
 
 - **Compliance**: No customer PII or account identifiers in skill prompts. Regimes in scope: {{COMPLIANCE_REGIMES}}
 - **Visibility**: Engagement-internal forever - org-private on GitHub, never public, no public npm
-- **Naming**: All plugin dirs `plugins/grv-<slug>/`, branch prefix `gsd/`, install id `{{MARKETPLACE_NAME}}`
+- **Naming**: Generic plugin `plugins/sdlc/` unprefixed; engagement plugin dirs `plugins/{{PREFIX}}-<slug>/` with skills `{{PREFIX}}-<action>`; branch prefix `gsd/`; install id `{{MARKETPLACE_NAME}}`
 - **CI**: The eight required status checks (listed in `AGENTS.md`) must pass on every PR; the CI workflow skips pushes that touch only planning or docs files, never PRs
 - **Merge policy**: Squash-merge only, conventional commit on main, branches auto-delete
 
@@ -39,13 +39,14 @@ explicit tier decision.
 
 ### Plugin Manifest Format
 
-| Artifact             | Format                                   | Location                                          |
-| -------------------- | ---------------------------------------- | ------------------------------------------------- |
-| Plugin manifest      | `plugin.json`                            | `plugins/grv-<slug>/.claude-plugin/plugin.json`   |
-| Marketplace registry | `marketplace.json`                       | `.claude-plugin/marketplace.json`                 |
-| Skill definition     | YAML frontmatter + Markdown (`SKILL.md`) | `plugins/grv-<slug>/skills/grv-<action>/SKILL.md` |
-| Hook config          | `hooks/hooks.json`                       | `plugins/grv-<slug>/hooks/hooks.json`             |
-| MCP config           | `.mcp.json`                              | `plugins/grv-<slug>/.mcp.json`                    |
+| Artifact             | Format                                   | Location                                      |
+| -------------------- | ---------------------------------------- | --------------------------------------------- |
+| Plugin manifest      | `plugin.json`                            | `plugins/<plugin>/.claude-plugin/plugin.json` |
+| Marketplace registry | `marketplace.json`                       | `.claude-plugin/marketplace.json`             |
+| Naming config        | `.engagement.json`                       | repo root                                     |
+| Skill definition     | YAML frontmatter + Markdown (`SKILL.md`) | `plugins/<plugin>/skills/<skill>/SKILL.md`    |
+| Hook config          | `hooks/hooks.json`                       | `plugins/<plugin>/hooks/hooks.json`           |
+| MCP config           | `.mcp.json`                              | `plugins/<plugin>/.mcp.json`                  |
 
 ### Validation Toolchain
 
@@ -68,7 +69,7 @@ explicit tier decision.
 - `mise run lint` - yamllint + markdownlint + shellcheck
 - `mise run format` - prettier write + shfmt write (auto-fix)
 - `mise run format-check` - mirrors CI, no writes
-- `mise run validate` - schema validation + version drift + client name isolation + stub/skill checks
+- `mise run validate` - schema validation + version drift + client name isolation + stub/skill checks + naming (`scripts/check-naming.py`)
 - `mise run test` - promptfoo skill quality tests (live API calls; pre-CI only)
 
 ## Claude Code hooks
@@ -77,14 +78,14 @@ explicit tier decision.
 `content` or `new_string` for the client-name guard); the scripts parse it with `jq`, or `python3` when `jq` is absent,
 and filter on the path themselves. Hook timeouts are in seconds.
 
-| Event       | Matcher       | Script                                         | Effect                                                                   |
-| ----------- | ------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
-| PreToolUse  | `Edit\|Write` | `block-client-names.sh`                        | Exit 2 refuses a write that adds a `.clients` name outside `references/` |
-| PostToolUse | `Edit\|Write` | `post-edit.sh` (runs the steps below in order) | Exit 2 shows the message to Claude; the write has already happened       |
-|             |               | `format-file.sh`, `lint-yaml.sh`               | Prettier on md/json/yml/yaml; yamllint on `.github/workflows/`           |
-|             |               | `check-stub-format.sh`                         | Stub SKILL.md must say "not yet implemented"                             |
-|             |               | `check-skill-suffix.sh`                        | Skill directory needs the `grv-` prefix and an allowed suffix            |
-|             |               | `regen-template-index.py`                      | Rebuilds `index.md` for a `templates/` directory                         |
+| Event       | Matcher       | Script                                         | Effect                                                                      |
+| ----------- | ------------- | ---------------------------------------------- | --------------------------------------------------------------------------- |
+| PreToolUse  | `Edit\|Write` | `block-client-names.sh`                        | Exit 2 refuses a write that adds a `.clients` name outside `references/`    |
+| PostToolUse | `Edit\|Write` | `post-edit.sh` (runs the steps below in order) | Exit 2 shows the message to Claude; the write has already happened          |
+|             |               | `format-file.sh`, `lint-yaml.sh`               | Prettier on md/json/yml/yaml; yamllint on `.github/workflows/`              |
+|             |               | `check-stub-format.sh`                         | Stub SKILL.md must say "not yet implemented"                                |
+|             |               | `check-skill-suffix.sh`                        | Skill in an engagement plugin needs the prefix; any skill an allowed suffix |
+|             |               | `regen-template-index.py`                      | Rebuilds `index.md` for a `templates/` directory                            |
 
 These are a local convenience. CI is the enforcement point: Bash redirects and other tools bypass the PreToolUse guard,
 and a contributor not using Claude Code never runs any of it. See `.claude/docs/VALIDATION.md`.

@@ -10,7 +10,7 @@ Cross-tool source of truth for agent behavior in this repo. Claude-specific nuan
 <!-- template:begin -->
 
 > **Template state.** If the placeholder tokens (double curly braces around ENGAGEMENT_NAME, ENGAGEMENT_SLUG,
-> GITHUB_ORG, MARKETPLACE_NAME, COMPLIANCE_REGIMES) are still present anywhere in this repo, you are in the
+> GITHUB_ORG, MARKETPLACE_NAME, COMPLIANCE_REGIMES, PREFIX) are still present anywhere in this repo, you are in the
 > template, not in an engagement instance. Never fill them in by hand. A human runs `scripts/init-engagement.sh`
 > once per instance (see `TEMPLATE.md`). That script also removes this block.
 
@@ -31,20 +31,20 @@ Install identifier: `{{MARKETPLACE_NAME}}`
 
 An instance of this repo lives in one of two places. The choice is made per engagement and does not change anything else in this file.
 
-- **Gravicore org.** Gravicore hosts and maintains the repo; the client is granted read access to install from it.
-- **Client org.** The client hosts the repo in its own GitHub org; Gravicore contributes by pull request and the client controls access and branch protection.
+- **Consultancy org.** The maintaining consultancy hosts and maintains the repo; the client is granted read access to install from it.
+- **Client org.** The client hosts the repo in its own GitHub org; the maintaining consultancy contributes by pull request and the client controls access and branch protection.
 
-`{{GITHUB_ORG}}` is whichever org hosts this instance.
+`{{GITHUB_ORG}}` is whichever org hosts this instance; that org's administrators are the instance owner.
 
 ## Three-tier model
 
-This repo is produced from the engagement template. Each instance is an engagement-tier marketplace in Gravicore's Claude marketplace design:
+This repo is produced from the engagement template. Each instance is the engagement tier of a three-tier Claude marketplace design:
 
 - **Public tier** - plugins destined for public release.
-- **Corporate tier** - plugins that stay internal to Gravicore forever.
+- **Corporate tier** - plugins that stay internal to the maintaining consultancy.
 - **Engagement tier (this repo)** - `{{MARKETPLACE_NAME}}`: {{ENGAGEMENT_NAME}} engagement only.
 
-Tier decision rule: if the skill is specific to {{ENGAGEMENT_NAME}}, it belongs in this repo. If it is Gravicore-internal forever, it belongs in the corporate tier. The other two tiers are maintained by Gravicore, are not part of this repo, and need not be reachable from a client-hosted instance.
+Tier decision rule: if the skill is specific to {{ENGAGEMENT_NAME}}, it belongs in this repo. If it is internal to the maintaining consultancy and not specific to this engagement, it belongs in the corporate tier. The other two tiers are maintained by the consultancy, are not part of this repo, and need not be reachable from a client-hosted instance.
 
 ## Three-surface compatibility
 
@@ -56,7 +56,7 @@ A single plugin entry serves three Claude surfaces with no per-surface forking:
 
 ## Repo layout
 
-Root files and top-level directories are described in the root `_index.json` - read it on entry. Per-plugin layout: `plugins/grv-<slug>/` (one directory per plugin). Do not maintain a file listing here; register new root entries in `_index.json`.
+Root files and top-level directories are described in the root `_index.json` - read it on entry. Per-plugin layout: one directory per plugin under `plugins/` - the generic `sdlc` plugin, and engagement plugins named `plugins/{{PREFIX}}-<slug>/`. Do not maintain a file listing here; register new root entries in `_index.json`.
 
 ## Compliance
 
@@ -95,7 +95,7 @@ The Claude Code hooks in `.claude/settings.json` are a fast local guard, not the
 
 ## Skill naming
 
-Skill directories are `grv-<action>`, and the last word is drawn from a fixed suffix list kept in sync across `.claude/hooks/check-skill-suffix.sh` and `docs/contributing/SKILL-AUTHORING.md`. See that guide before adding a suffix.
+The generic `sdlc` plugin and its skills carry no prefix (`/sdlc:phase-run`). Engagement plugins and their skills carry the engagement prefix from `.engagement.json`: `{{PREFIX}}-<name>` for a plugin, `{{PREFIX}}-<action>` for a skill. CI enforces this and global skill-name uniqueness through `scripts/check-naming.py`. The last word of a skill name is drawn from a fixed suffix list kept in sync across `.claude/hooks/check-skill-suffix.sh` and `docs/contributing/SKILL-AUTHORING.md`. See that guide before adding a suffix.
 
 ## Local validation
 

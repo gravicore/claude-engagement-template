@@ -7,7 +7,7 @@ real client repository.
 
 Create one per cohort (or one per learner pair) from a small reference application with: a passing
 test suite, two or three required CI checks, the same ruleset and signing controls as the real
-instance, a `.grv/sdlc.json` pointing at a sandbox Jira project, and synthetic data only. The
+instance, a `.sdlc/config.json` pointing at a sandbox Jira project, and synthetic data only. The
 sandbox Jira project needs the real workflow, including the UAT transition, so learners meet the
 real gates. Seed it with a prepared epic, a few small stories, and one deliberately broken story
 (a requirement that contradicts the code) for the review lab. Reset it between cohorts.
@@ -22,12 +22,12 @@ Audience: developers who will deliver stories and phases with agents.
 | --------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | A1 Mental model       | 60 min  | The lifecycle; what an agent does and never does; the five human gates (merge, UAT sign-off, ticket close, release, ruleset change); why signed commits and rulesets exist | Read a finished sandbox epic end to end: find the gate evidence for each human decision               |
 | A2 Setup and safety   | 60 min  | Install from the marketplace; `/status`; permissions; secrets are never read by agents; the provenance label                                                               | Install on a clean profile; trigger and observe a permission prompt; confirm a `.env` read is refused |
-| A3 Deliver a story    | 120 min | Using `grv-story-deliver`: ticket as spec, isolated worktree, branch and PR, verification, stopping at the gate                                                            | Deliver one small story to a reviewed PR                                                              |
+| A3 Deliver a story    | 120 min | Using `story-deliver`: ticket as spec, isolated worktree, branch and PR, verification, stopping at the gate                                                                | Deliver one small story to a reviewed PR                                                              |
 | A4 When it goes wrong | 90 min  | Reading skill output; fail-closed config errors; stale branch or worktree state; unsigned commit rejection; what to do when a check is red                                 | Fix three seeded failures: missing config key, unsigned commit, red required check                    |
 | A5 Learnings          | 45 min  | What the learnings step records and who reviews changes to the instance                                                                                                    | Propose one change to a sandbox skill by pull request                                                 |
 
 Competency check (observed by a trainer): the learner delivers one story through
-`grv-story-deliver` to a reviewed pull request, with signed commits, every required check green and
+`story-deliver` to a reviewed pull request, with signed commits, every required check green and
 the provenance label present on the ticket, without bypassing a gate, and then states which actions
 remained for a human (merge, UAT sign-off, ticket closure) and who performs them. Any bypass flag,
 force push, or self-recorded approval is an automatic fail and a retake.

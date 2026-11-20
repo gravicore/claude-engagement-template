@@ -10,7 +10,7 @@
 > A rule without a why gets deleted at the first inconvenience. Replace every FILL comment block
 > before the first agent-delivered phase. Remove a starter rule only by decision, recorded in the
 > commit that removes it. Project coordinates (tracker, repository, environments, owners) live in
-> `.grv/sdlc.json`, not in this prose.
+> `.sdlc/config.json`, not in this prose.
 
 # Human Gates
 
@@ -24,7 +24,7 @@ with nothing pending is not a signature.
 
 <!-- FILL: one line per command a contributor needs, exact and copy-pasteable: dev server, build,
 lint, type check, unit tests, the local-stack command (matches verification.localStack in
-.grv/sdlc.json), and what the pre-commit hook runs. State ports and required tools. -->
+.sdlc/config.json), and what the pre-commit hook runs. State ports and required tools. -->
 
 # Stack and Structure
 
@@ -216,7 +216,7 @@ Every control sits on one of two planes. Name the plane whenever you write "cont
 
 Say which environment you mean before judging risk. "Production" alone is ambiguous.
 
-<!-- FILL: one row per environment in .grv/sdlc.json: name, URL, data class (synthetic or
+<!-- FILL: one row per environment in .sdlc/config.json: name, URL, data class (synthetic or
 production), who may promote to it, how it is seeded. State which does not exist yet. -->
 
 - **Synthetic and live are different risk regimes.** The same defect is sandbox hygiene in one
@@ -302,7 +302,7 @@ administratively undo." Also record the emergency-override procedure and where i
 
 # Tracker Conventions
 
-Coordinates and transition ids come from `.grv/sdlc.json`. Text fields are plain text: never
+Coordinates and transition ids come from `.sdlc/config.json`. Text fields are plain text: never
 HTML-escape them, and say so when rendering cannot be verified through the API.
 
 - **Ticket titles are headlines.** Three to five words stating the outcome; ASCII punctuation;
@@ -335,31 +335,31 @@ HTML-escape them, and say so when rendering cannot be verified through the API.
 
 # Delivery Workflow
 
-The process is written down as executable workflow definitions (the `grv-sdlc` skills). Read the
+The process is written down as executable workflow definitions (the `sdlc` skills). Read the
 relevant one before doing that kind of work; they are the process of record whether or not your
 tooling can invoke them. Check them before designing a manual scheme for parallel or isolated
 work: isolated worktree delivery already exists. In lifecycle order:
 
-| Workflow                 | What it does                                                                                                                                                                                       |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `grv-epic-writer`        | Interviews the product owner to produce an intent-driven Epic: intent, user value, success criteria, out of scope. No implementation detail                                                        |
-| `grv-milestone-init`     | Turns an Epic into a milestone roadmap and requirements through an interactive intake; requirements are product-owner intent and are never derived unattended                                      |
-| `grv-milestone-setup`    | One-time kickoff: milestone branch, epic groomed against the codebase, a Story per phase, every phase planned, a setup PR. The setup PR merges before phase work begins                            |
-| `grv-milestone-sync`     | Creates or updates one Story per phase, links them to the Epic and each other, moves them to Selected, writes keys back into the roadmap                                                           |
-| `grv-milestone-planner`  | Discuss (sequential, interactive) then plan (dependency-ordered waves) for every pending phase                                                                                                     |
-| `grv-milestone-run`      | Runs all pending phases in order, phase-run then phase-complete, pausing or halting on a blocker                                                                                                   |
-| `grv-epic-run`           | Runs a whole epic unattended in one isolated worktree, setup through a draft PR per phase; every human gate halts the run and hands back                                                           |
-| `grv-phase-run`          | Primary entry point: one phase from zero to draft PR (discuss, plan, execute, ship draft), skipping stages whose artifacts exist                                                                   |
-| `grv-phase-complete`     | Takes an executed phase to Complete: an autonomous Verify lane (mandatory, produces the verification artifact), then the human UAT lane (skipped only by a dated waiver); moves the Story to UAT   |
-| `grv-phase-review-fix`   | Post-ready loop: collect AI, human and UAT findings; fix, re-verify, re-review until clean                                                                                                         |
-| `grv-story-deliver`      | Delivers one ticket as a change in its own worktree, branch and PR; the ticket description is the spec; escalates to phase planning when too big; never merges                                     |
-| `grv-story-update`       | Enriches a Story with post-planning detail (points, estimate, description) from plan artifacts or git state                                                                                        |
-| `grv-uat-session`        | Bootstraps a UAT session on a PR's preview: verifies data and identity coverage, spot-checks gates with paired controls, watches comments and CI; never fixes code inline                          |
-| `grv-milestone-review`   | Readiness review of the release PR across all phases: verification sweep, milestone audit, review coverage for out-of-phase commits, epic brought current; writes READY or NOT READY, never merges |
-| `grv-milestone-complete` | The repo half of a close-out, on the open close-out PR before its merge: learnings, instruction-file updates, docs refresh, archive, the Open at Release list                                      |
-| `grv-release-close`      | Everything after a release's last merge, changing no file: notes, the human-gated release, chat pointer, shipped tickets Done on per-ticket human selection, workspace pruned, Epic Done last      |
-| `grv-learn`              | `extract` turns evidence into a dated learnings ledger and never edits a governing file; `promote` is the human gate that proposes diffs to instruction files                                      |
-| `grv-docs-sync`          | One entry point to make the docs true again: code-derived docs regenerated and fact-checked, operator and contributor docs routed to their homes                                                   |
+| Workflow             | What it does                                                                                                                                                                                       |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `epic-writer`        | Interviews the product owner to produce an intent-driven Epic: intent, user value, success criteria, out of scope. No implementation detail                                                        |
+| `milestone-init`     | Turns an Epic into a milestone roadmap and requirements through an interactive intake; requirements are product-owner intent and are never derived unattended                                      |
+| `milestone-setup`    | One-time kickoff: milestone branch, epic groomed against the codebase, a Story per phase, every phase planned, a setup PR. The setup PR merges before phase work begins                            |
+| `milestone-sync`     | Creates or updates one Story per phase, links them to the Epic and each other, moves them to Selected, writes keys back into the roadmap                                                           |
+| `milestone-planner`  | Discuss (sequential, interactive) then plan (dependency-ordered waves) for every pending phase                                                                                                     |
+| `milestone-run`      | Runs all pending phases in order, phase-run then phase-complete, pausing or halting on a blocker                                                                                                   |
+| `epic-run`           | Runs a whole epic unattended in one isolated worktree, setup through a draft PR per phase; every human gate halts the run and hands back                                                           |
+| `phase-run`          | Primary entry point: one phase from zero to draft PR (discuss, plan, execute, ship draft), skipping stages whose artifacts exist                                                                   |
+| `phase-complete`     | Takes an executed phase to Complete: an autonomous Verify lane (mandatory, produces the verification artifact), then the human UAT lane (skipped only by a dated waiver); moves the Story to UAT   |
+| `phase-review-fix`   | Post-ready loop: collect AI, human and UAT findings; fix, re-verify, re-review until clean                                                                                                         |
+| `story-deliver`      | Delivers one ticket as a change in its own worktree, branch and PR; the ticket description is the spec; escalates to phase planning when too big; never merges                                     |
+| `story-update`       | Enriches a Story with post-planning detail (points, estimate, description) from plan artifacts or git state                                                                                        |
+| `uat-session`        | Bootstraps a UAT session on a PR's preview: verifies data and identity coverage, spot-checks gates with paired controls, watches comments and CI; never fixes code inline                          |
+| `milestone-review`   | Readiness review of the release PR across all phases: verification sweep, milestone audit, review coverage for out-of-phase commits, epic brought current; writes READY or NOT READY, never merges |
+| `milestone-complete` | The repo half of a close-out, on the open close-out PR before its merge: learnings, instruction-file updates, docs refresh, archive, the Open at Release list                                      |
+| `release-close`      | Everything after a release's last merge, changing no file: notes, the human-gated release, chat pointer, shipped tickets Done on per-ticket human selection, workspace pruned, Epic Done last      |
+| `learn`              | `extract` turns evidence into a dated learnings ledger and never edits a governing file; `promote` is the human gate that proposes diffs to instruction files                                      |
+| `docs-sync`          | One entry point to make the docs true again: code-derived docs regenerated and fact-checked, operator and contributor docs routed to their homes                                                   |
 
 # Gates That Cannot Literally Hard-Block
 

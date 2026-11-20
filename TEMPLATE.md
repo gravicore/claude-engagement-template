@@ -5,18 +5,19 @@ changes. For the wider rollout (people, training, cadence) see `docs/enablement/
 `docs/enablement/02-client-org-setup.md`.
 
 An instance is one repo per client engagement: that client's centralized skills and agent repository, published as a
-Claude Code plugin marketplace. It ships with the `grv-sdlc` delivery-lifecycle plugin pre-registered.
+Claude Code plugin marketplace. It ships with the generic `sdlc` delivery-lifecycle plugin pre-registered; plugins
+authored for the engagement are added beside it, named with the engagement prefix chosen at init.
 
 ## 1. Choose where the instance lives
 
 Both options are supported; the choice does not change the repo contents.
 
-| Option           | Hosted in              | Gravicore's role                                | Client's role                                           |
-| ---------------- | ---------------------- | ----------------------------------------------- | ------------------------------------------------------- |
-| Gravicore org    | Gravicore's GitHub org | Owns and administers the repo                   | Read access to install; may be granted write for PRs    |
-| Client's own org | Client's GitHub org    | Contributes by pull request, never owns the org | Owns administration, branch protection, and access list |
+| Option           | Hosted in                    | Maintaining consultancy's role                  | Client's role                                           |
+| ---------------- | ---------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
+| Consultancy org  | The consultancy's GitHub org | Owns and administers the repo                   | Read access to install; may be granted write for PRs    |
+| Client's own org | Client's GitHub org          | Contributes by pull request, never owns the org | Owns administration, branch protection, and access list |
 
-Whichever org hosts it is the org name you pass to init. Create the repo as **private**: an instance holds engagement-specific content and stays private, even though the template and the `grv-sdlc` plugin it starts from are open source under Apache-2.0 (see `LICENSE` and `NOTICE`).
+Whichever org hosts it is the org name you pass to init. Create the repo as **private**: an instance holds engagement-specific content and stays private, even though the template and the `sdlc` plugin it starts from are open source under Apache-2.0 (see `LICENSE` and `NOTICE`).
 
 ## 2. Create the repo from the template
 
@@ -50,6 +51,7 @@ scripts/init-engagement.sh \
   --name "Acme Lending" \
   --slug acme-lending \
   --org example-org \
+  --prefix acme \
   --regimes "GLBA, SOC 2"
 ```
 
@@ -60,10 +62,16 @@ Flags:
 | `--name`        | ENGAGEMENT_NAME              | Human name, free text                              |
 | `--slug`        | ENGAGEMENT_SLUG              | Lowercase kebab-case; also the repo name           |
 | `--org`         | GITHUB_ORG                   | The org that hosts the instance                    |
-| `--marketplace` | MARKETPLACE_NAME             | Optional; defaults to `gravicore-<slug>`           |
+| `--prefix`      | PREFIX                       | 2-8 chars, `^[a-z][a-z0-9]{1,7}$`; see below       |
+| `--marketplace` | MARKETPLACE_NAME             | Optional; defaults to the prefix                   |
 | `--regimes`     | COMPLIANCE_REGIMES           | Free text list of regimes in scope for this client |
 
-Placeholders are double-curly-brace tokens named as in the table. The script:
+Placeholders are double-curly-brace tokens named as in the table.
+
+The prefix is a short engagement code (for example `acme`). Plugins and skills authored for this engagement are named
+with it (`acme-servicing`, `acme-loan-summary`), while the generic `sdlc` plugin and its skills stay unprefixed. Init
+writes it into `.engagement.json`, which the naming checks in CI, the pre-commit hook and `mise run validate` read. Pick
+it once: renaming later means renaming every engagement plugin and skill. The script:
 
 - replaces every occurrence in every text file, and prints each file with its replacement count;
 - removes the template-only blocks (delimited by template:begin and template:end HTML comments) from `README.md`,
@@ -80,7 +88,10 @@ Do not substitute placeholders by hand and do not run init in the template repo 
 ## 4. Finish setup (manual)
 
 - **CODEOWNERS**: it names a team called `<slug>-maintainers` in the hosting org. Create that team or edit the file to
-  an existing one. A plugin directory without a covering entry fails CI.
+  an existing one, and make the same change in `plugins/sdlc/references/OWNERS.md`. Every plugin directory needs its
+  own CODEOWNERS line and an `OWNERS.md`; CI fails a plugin without both, or where the two name different owners.
+- **More plugins**: this is one marketplace for many plugins. `docs/PLUGIN-TAXONOMY.md` describes the layers and the
+  rules; `python3 scripts/new-plugin.py` scaffolds a new plugin with its owner records.
 - **`.clients`**: list engagement-specific sensitive names one per line (client system names, partner IDs, personal
   identifiers). CI fails any pull request that has them outside `plugins/*/references/` (that is the enforcement), and
   a Claude Code PreToolUse hook refuses a Claude Code write that would add one (a local convenience that Bash
@@ -109,8 +120,9 @@ ones.
 
 Access follows the hosting choice:
 
-- **Gravicore-hosted**: grant the client's users read access so they can install; grant Gravicore contributors write.
-- **Client-hosted**: the client grants Gravicore contributors write or lets them open PRs from forks, and keeps
+- **Consultancy-hosted**: grant the client's users read access so they can install; grant the consultancy's
+  contributors write.
+- **Client-hosted**: the client grants the consultancy's contributors write or lets them open PRs from forks, and keeps
   administration to itself.
 
 Anyone installing needs read access to the repo and a working GitHub credential on their machine. For a private
@@ -121,7 +133,7 @@ Install, in Claude Code or Claude Cowork:
 
 ```text
 /plugin marketplace add {{GITHUB_ORG}}/{{ENGAGEMENT_SLUG}}
-/plugin install grv-sdlc@{{MARKETPLACE_NAME}}
+/plugin install sdlc@{{MARKETPLACE_NAME}}
 ```
 
 ## 7. Pull later template updates into an instance
@@ -137,7 +149,7 @@ git diff template-synced template/main -- . ':(exclude).clients' ':(exclude).pla
 git apply --3way ../template.patch
 ```
 
-Resolve conflicts by hand: files init edited (README, AGENTS, CLAUDE, CODEOWNERS, `marketplace.json`) will conflict on
+Resolve conflicts by hand: files init edited (README, AGENTS, CLAUDE, CODEOWNERS, `marketplace.json`, `.engagement.json`) will conflict on
 substituted lines, and the right answer is nearly always to keep the instance's values and take the template's new
 structure. If the incoming change introduces new placeholder tokens, re-run `scripts/init-engagement.sh` with the
 instance's original flag values; it replaces only what remains. Then run `mise run lint && mise run validate`, open a PR,
@@ -148,7 +160,7 @@ git tag -f template-synced template/main
 git push origin template-synced --force
 ```
 
-Review incoming `plugins/grv-sdlc` changes like any plugin change: `version` in `plugin.json` and in the marketplace
+Review incoming `plugins/sdlc` changes like any plugin change: `version` in `plugin.json` and in the marketplace
 entry must still match (CI checks version drift; Claude Code itself uses the `plugin.json` value when both are set).
 
 An instance that prefers merge commits for sync PRs may instead run

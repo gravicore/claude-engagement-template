@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Engagement Naming Config",
+  "description": "Schema for the root .engagement.json, which the naming checks read: the engagement prefix for engagement-authored plugins and skills, and the generic plugins that carry no prefix.",
+  "type": "object",
+  "properties": {
+    "prefix": {
+      "type": "string",
+      "pattern": "^([a-z][a-z0-9]{1,7}|[{][{]PREFIX[}][}])$",
+      "description": "Short engagement code chosen at init (2 to 8 lowercase letters or digits, starting with a letter). Engagement-authored plugins and their skills are named <prefix>-<name>. Holds the init placeholder until scripts/init-engagement.sh has run."
+    },
+    "genericPlugins": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "uniqueItems": true,
+      "description": "Plugin directories that belong to the generic layer shipped by the template. They and their skills carry no prefix."
+    }
+  },
+  "required": ["prefix", "genericPlugins"],
+  "additionalProperties": false
+}

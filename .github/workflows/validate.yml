@@ -106,42 +106,26 @@ jobs:
           print(f'OK: {len(entries)} marketplace entry/entries validated against schema')
           PYEOF
 
-      - name: Validate name (D-04)
+      - name: Validate engagement naming config (.engagement.json)
         run: |
           python3 << 'PYEOF'
           import json
+          import jsonschema
           import sys
-          import os
-          import re
 
-          errors = []
-          if os.path.isdir('plugins'):
-              for slug in sorted(os.listdir('plugins')):
-                  plugin_path = f'plugins/{slug}'
-                  if not os.path.isdir(plugin_path):
-                      continue
-                  manifest = f'{plugin_path}/.claude-plugin/plugin.json'
-                  if not os.path.exists(manifest):
-                      continue  # validate-schemas step catches missing manifests
-                  with open(manifest) as f:
-                      plugin = json.load(f)
-                  plugin_name = plugin.get('name', '')
-                  if not plugin_name:
-                      errors.append(f'MISSING name in {manifest}')
-                  elif not re.match(r'^grv-.+$', plugin_name):
-                      errors.append(
-                          f'INVALID name in {manifest}: "{plugin_name}" does not match ^grv-.+$'
-                      )
-                  if plugin_name and plugin_name != slug:
-                      errors.append(
-                          f'NAME MISMATCH in {manifest}: '
-                          f'plugin.json name="{plugin_name}" != {slug}'
-                      )
-          if errors:
-              for err in errors:
-                  print(err)
+          with open('schemas/engagement.json') as f:
+              schema = json.load(f)
+          try:
+              with open('.engagement.json') as f:
+                  config = json.load(f)
+              jsonschema.validate(config, schema)
+          except FileNotFoundError:
+              print('ERROR: .engagement.json missing')
               sys.exit(1)
-          print('OK: all plugins have valid name fields')
+          except (json.JSONDecodeError, jsonschema.ValidationError) as e:
+              print(f'ERROR: .engagement.json: {getattr(e, "message", e)}')
+              sys.exit(1)
+          print('OK: .engagement.json validated against schema')
           PYEOF
 
       - name: Check version drift (BOOT-02)
@@ -309,114 +293,9 @@ jobs:
           sys.exit(0)  # Always exit 0 - non-blocking warning per BOOT-06
           PYEOF
 
-      - name: Check plugin name convention (grv- prefix + dirname match)
-        run: |
-          python3 << 'PYEOF'
-          import json, sys, os
-
-          with open('.claude-plugin/marketplace.json') as f:
-              marketplace = json.load(f)
-
-          errors = []
-          entries = marketplace.get('plugins', [])
-          for entry in entries:
-              src = entry.get('source')
-              if isinstance(src, str):
-                  plugin_path = src.lstrip('./')
-              elif isinstance(src, dict):
-                  plugin_path = src.get('path', '')
-              else:
-                  plugin_path = ''
-
-              if not plugin_path:
-                  errors.append(f'MISSING source in marketplace entry: {entry.get("name")}')
-                  continue
-
-              plugin_dirname = os.path.basename(plugin_path.rstrip('/'))
-              entry_name = entry.get('name', '')
-
-              if not plugin_dirname.startswith('grv-'):
-                  errors.append(
-                      f'INVALID plugin directory: {plugin_path} - '
-                      f'plugin directories must start with "grv-" (got "{plugin_dirname}")'
-                  )
-              elif entry_name != plugin_dirname:
-                  errors.append(
-                      f'NAME MISMATCH: marketplace.json entry "{entry_name}" != '
-                      f'source dirname "{plugin_dirname}" for {plugin_path}'
-                  )
-              else:
-                  print(f'OK: {plugin_path} - name "{entry_name}" matches source dirname')
-
-          if errors:
-              for err in errors:
-                  print(err)
-              sys.exit(1)
-          print(f'OK: {len(entries)} plugin(s) have valid grv- names matching source dirname')
-          PYEOF
-
-      - name: Check skill name prefix (grv- required)
-        run: |
-          python3 << 'PYEOF'
-          import sys, os, re
-
-          errors = []
-          grv_pattern = re.compile(r'^grv-')
-
-          if os.path.isdir('plugins'):
-              for root, dirs, files in os.walk('plugins'):
-                  dirs[:] = [d for d in dirs if not d.startswith('.')]
-                  if os.path.basename(root) != 'skills':
-                      continue
-                  for skill_dir in sorted(dirs):
-                      if not grv_pattern.match(skill_dir):
-                          errors.append(
-                              f'INVALID skill name: {root}/{skill_dir} - '
-                              f'skill names must start with "grv-" (got "{skill_dir}")'
-                          )
-
-          if errors:
-              for err in errors:
-                  print(err)
-              sys.exit(1)
-          print('OK: all skill names start with "grv-"')
-          PYEOF
-
-      - name: Check global skill name uniqueness
-        run: |
-          python3 << 'PYEOF'
-          import sys, os
-
-          errors = []
-          skill_names = {}  # skill_name -> list of (plugin_dir, full_path)
-
-          if os.path.isdir('plugins'):
-              for root, dirs, files in os.walk('plugins'):
-                  dirs[:] = [d for d in dirs if not d.startswith('.')]
-                  if os.path.basename(root) != 'skills':
-                      continue
-                  plugin_dir = root.split('/')[1]  # plugins/grv-foo -> grv-foo
-                  for skill_dir in dirs:
-                      if skill_dir.startswith('.'):
-                          continue
-                      full_path = os.path.join(root, skill_dir)
-                      if skill_dir not in skill_names:
-                          skill_names[skill_dir] = []
-                      skill_names[skill_dir].append((plugin_dir, full_path))
-
-          for skill_name, locations in skill_names.items():
-              if len(locations) > 1:
-                  locations_str = ', '.join([f'{p}/{s}' for p, s in locations])
-                  errors.append(
-                      f'DUPLICATE SKILL NAME: "{skill_name}" found in multiple plugins: {locations_str}'
-                  )
-
-          if errors:
-              for err in errors:
-                  print(err)
-              sys.exit(1)
-          print(f'OK: all {len(skill_names)} skill names are globally unique across all plugins')
-          PYEOF
+      # D-04: one implementation of the naming rule, shared with the pre-commit hook and mise validate.
+      - name: Check plugin and skill naming (D-04)
+        run: python3 scripts/check-naming.py
 
   # BOOT-03: Secret scanning via gitleaks CLI
   scan-secrets:
@@ -441,51 +320,15 @@ jobs:
       - name: Run gitleaks
         run: gitleaks detect --source . --redact --no-banner --config .gitleaks.toml
 
-  # BOOT-07: Verify every plugins/<slug>/ has a CODEOWNERS entry
+  # BOOT-07: every plugins/<slug>/ has its own CODEOWNERS line and a complete references/OWNERS.md
   check-codeowners:
     name: Check CODEOWNERS entries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify every plugins/<slug>/ directory has a CODEOWNERS entry
-        run: |
-          python3 << 'PYEOF'
-          import sys
-          import os
-
-          if not os.path.exists('CODEOWNERS'):
-              print('ERROR: CODEOWNERS file missing')
-              sys.exit(1)
-
-          with open('CODEOWNERS') as f:
-              codeowners_content = f.read()
-
-          plugin_dirs = []
-          if os.path.isdir('plugins'):
-              plugin_dirs = [
-                  d for d in os.listdir('plugins')
-                  if os.path.isdir(f'plugins/{d}') and not d.startswith('.')
-              ]
-
-          if not plugin_dirs:
-              print('OK: no plugin directories found - nothing to verify')
-              sys.exit(0)
-
-          errors = []
-          for slug in plugin_dirs:
-              has_wildcard = 'plugins/*' in codeowners_content
-              has_specific = f'plugins/{slug}' in codeowners_content
-              if not has_wildcard and not has_specific:
-                  errors.append(f'MISSING CODEOWNERS entry for plugins/{slug}/')
-
-          if errors:
-              for err in errors:
-                  print(f'ERROR: {err}')
-              print('Add entries for new plugin directories to CODEOWNERS.')
-              sys.exit(1)
-          print(f'OK: {len(plugin_dirs)} plugin directory/directories covered by CODEOWNERS')
-          PYEOF
+      - name: Verify every plugin has a named owner
+        run: python3 scripts/check-plugin-owners.py
 
   # D-14: yamllint strict mode on .github/workflows/ files
   yamllint-workflows:

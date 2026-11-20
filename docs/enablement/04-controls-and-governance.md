@@ -30,7 +30,7 @@ controls, which the skills never replace.
 Required before any agent works in a repository:
 
 1. Changes to the default branch only by pull request; direct push blocked.
-2. Required status checks, listed in `.grv/sdlc.json` `repo.requiredChecks`, matching the ruleset.
+2. Required status checks, listed in `.sdlc/config.json` `repo.requiredChecks`, matching the ruleset.
 3. Required review thread resolution, so unresolved feedback blocks merge.
 4. Required commit signatures on every branch, with an empty bypass list. The purpose is to make
    authorship evidence rather than a claim; an author field alone is an unauthenticated string.
@@ -61,7 +61,7 @@ Five acts are never performed by an agent on its own authority: merging a pull r
 UAT sign-off or acceptance; closing a ticket or transitioning it to a done state; publishing a
 release; and changing a repository ruleset. Gathering evidence for any of them is allowed and is not the same act as approving them.
 A checklist with nothing pending is not a signature. These gates are not configurable in
-`.grv/sdlc.json`. External backing: the merge gate is the ruleset (required approvals, code-owner
+`.sdlc/config.json`. External backing: the merge gate is the ruleset (required approvals, code-owner
 review); the release gate is repository permissions on release creation; ticket closure and UAT
 transitions should be restricted in the Jira workflow to human roles where the client's Jira
 configuration allows it (UNVERIFIED - depends on the client's Jira permission scheme).
@@ -118,7 +118,7 @@ audit that samples tickets with agent commits but no label (see `05`).
 | Human gates                  | For a sample of tickets: named approver, timestamp, evidence link                    | Jira history; PR approvals                        |
 | Managed settings             | The policy file or console export; `/status` capture from sample machines            | Policy repository; machine captures               |
 | Secrets handling             | Deny rules in policy; scanner results; rotation records                              | Managed settings; scanner; secret manager logs    |
-| Environment classification   | Signed classification table                                                          | `.grv/sdlc.json` and client register              |
+| Environment classification   | Signed classification table                                                          | `.sdlc/config.json` and client register           |
 | Vendor review                | Dated review record and the terms version reviewed                                   | Client risk register                              |
 | Provenance label             | Query result and the sampling record                                                 | Jira filter; audit notes                          |
 
